@@ -1,0 +1,99 @@
+
+==================================================
+[16/11/2026 01:01] GEOLOC
+==================================================
+{
+ "status": "success",
+ "country": "France",
+ "regionName": "Île-de-France",
+ "city": "Drancy",
+ "zip": "93700",
+ "lat": 48.9258,
+ "lon": 2.44533,
+ "timezone": "Europe/Paris",
+ "isp": "Societe Francaise Du Radiotelephone - SFR SA",
+ "org": "SFR User Data",
+ "as": "AS15557 Societe Francaise Du Radiotelephone - SFR SA",
+ "reverse": "123.128.92.92.rev.sfr.net"
+}
+
+==================================================
+[16/11/2026 01:01] WHOIS
+==================================================
+
+refer:        whois.ripe.net
+
+inetnum:      92.0.0.0 - 92.255.255.255
+organisation: RIPE NCC
+status:       ALLOCATED
+
+whois:        whois.ripe.net
+
+changed:      2007-03
+source:       IANA
+
+# whois.ripe.net
+
+inetnum:        92.92.128.0 - 92.92.135.255
+netname:        SFR-USER-DATA
+descr:          DSL
+country:        FR
+admin-c:        LD699-RIPE
+tech-c:         LDC76-RIPE
+status:         ASSIGNED PA
+mnt-by:         SFR-MNT
+created:        2016-04-12T15:43:21Z
+last-modified:  2016-04-12T15:43:21Z
+source:         RIPE
+
+role:           SFR Legal Contact
+address:        Campus SFR
+address:        12 rue Jean-Philippe Rameau
+address:        CS 80001
+address:        93634 La-Plaine-Saint-Denis Cedex
+address:        France
+phone:          +33 1 70 18 52 00
+admin-c:        LDC76-RIPE
+admin-c:        HS10001-RIPE
+tech-c:         HS10001-RIPE
+nic-hdl:        LD699-RIPE
+abuse-mailbox:  abuse@gaoland.net
+mnt-by:         LDCOM-MNT
+created:        2003-10-23T09:15:54Z
+last-modified:  2023-09-18T07:21:21Z
+source:         RIPE # Filtered
+
+role:           SFR Tech Contact (formerly Neuf Cegetel / LDCOM Networks)
+address:        SFR
+address:        CAMPUS SFR
+address:        16 rue du General Alain de Boissieu
+address:        CS 68217
+address:        75741 PARIS CEDEX 15
+address:        France
+phone:          +33 1 85 06 00 00
+admin-c:        LD699-RIPE
+admin-c:        HS10001-RIPE
+tech-c:         DG1056-RIPE
+nic-hdl:        LDC76-RIPE
+abuse-mailbox:  abuse@gaoland.net
+mnt-by:         LDCOM-MNT
+created:        2001-12-20T14:34:14Z
+last-modified:  2024-11-19T08:08:19Z
+source:         RIPE # Filtered
+
+
+route:          92.88.0.0/13
+descr:          SFR Altice France
+origin:         AS15557
+mnt-by:         SFR-MNT
+created:        2010-03-24T09:30:32Z
+last-modified:  2025-11-14T16:41:18Z
+source:         RIPE
+
+
+
+
+==================================================
+[16/11/2026 01:01] PORTS
+==================================================
+
