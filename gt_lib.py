@@ -20,6 +20,8 @@ RESSOURCES = {
     "passwords-common.txt": "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/Pwdb_top-1000000.txt",
     # la base de sherlock-project : 400+ plateformes d'OSINT
     "sherlock.json": "https://raw.githubusercontent.com/sherlock-project/sherlock/master/sherlock_project/resources/data.json",
+    # annuaire officiel SecureDrop (freedom of the press foundation) — signalement journalistique
+    "securedrop.json": "https://securedrop.org/api/v1/directory/",
 }
 
 def ressource(name, max_age_days=7):

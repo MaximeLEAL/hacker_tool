@@ -85,11 +85,17 @@ fonctions (aaa) · désassemblage (pdf) · pseudo-décompilation (pdc) · consol
 détection packing · **overlay PE** · strings+offsets (izz) · hexdump · diff binaires ·
 infos Mach-O · **constantes crypto** (AES S-box) · résumé · mémo r2
 
+## 🧅 DARK TOOL — opérations Tor (8 tools)
+1. STATUT TOR · 2. INSTALLER/DÉMARRER · 3. IP DE SORTIE TOR · 4. FETCH VIA TOR
+5. SECUREDROP (annuaire officiel des rédactions) · 6. MIROIRS ONION OFFICIELS · 7. CHECK .ONION · 8. OPSEC
+Services officiels uniquement — aucun annuaire de marketplaces.
+
 ## ⚡ Le BOOST GitHub (gt_lib.py)
 
 Tous les tools partagent un système de **ressources publiques téléchargées et mises en cache** :
 - **SecLists** (danielmiessler) — 5000 subdomains, wordlists de directories/params/passwords (1M)
 - **Sherlock** (sherlock-project) — la base de 482 plateformes d'OSINT
+- **SecureDrop** (freedom of the press) — l'annuaire officiel des signalements journalistiques
 
 ## ⚖️ Usage
 
