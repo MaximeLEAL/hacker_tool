@@ -256,6 +256,95 @@ def t_packed():
     if not checks: print(f"  {G}pas de signature de packer connue{RST}")
     save_report("PACKING", f"entropy={ent}")
 
+
+def t_overlays():
+    banner_title("OVERLAY PE & FICHIERS INCRUSTÉS")
+    if not need_sample(): return
+    data = open(SAMPLE["path"], "rb").read()
+    if data[:2] == b"MZ":
+        import struct
+        e_lfanew = struct.unpack("<I", data[0x3C:0x40])[0]
+        coff = e_lfanew + 4
+        nsec = struct.unpack("<H", data[coff+2:coff+4])[0]
+        optsz = struct.unpack("<H", data[coff+16:coff+18])[0]
+        maxend = 0
+        for i in range(nsec):
+            o = coff + 20 + optsz + i * 40
+            rsz, roff = struct.unpack("<II", data[o+16:o+24])
+            if roff and rsz: maxend = max(maxend, roff + rsz)
+        overlay = len(data) - maxend
+        print(f"  {G}fin des sections{RST} : {maxend:,} o")
+        print(f"  {G}overlay{RST} : {overlay:,} o {'⚠️ données cachées après les sections ?' if overlay > 1024 else ''}")
+    else:
+        print(f"{DIM}overlay = PE uniquement{RST}")
+
+def t_izz():
+    banner_title("STRINGS + OFFSETS (izz)")
+    if not need_sample(): return
+    out = r2("izz~http")
+    if out.strip():
+        print(f"{B}URLs avec offsets :{RST}\n{out[:3000]}")
+        save_report("IZZ", out[:3000])
+    else:
+        print(f"{Y}aucune URL{RST}")
+
+def t_hexdump():
+    banner_title("HEXDUMP (px)")
+    if not need_sample(): return
+    off = input(f"{DIM}offset (défaut 0x0){RST} > ").strip() or "0x0"
+    print(f"{W}{r2('px 512 @ ' + off)[:3000]}{RST}")
+
+def t_diffbin():
+    banner_title("DIFF DE DEUX BINAIRES")
+    if not need_sample(): return
+    p2 = input(f"{DIM}2e fichier{RST} > ").strip().strip('"')
+    if not os.path.exists(os.path.expanduser(p2)):
+        print(f"{R}introuvable{RST}"); return
+    def strs(p):
+        data = open(p, "rb").read()
+        return {x.decode('latin1') for x in re.findall(rb"[\x20-\x7e]{10,}", data[:3000000])}
+    a, b = strs(SAMPLE["path"]), strs(os.path.expanduser(p2))
+    print(f"\n{B}uniquement dans l'échantillon :{RST}")
+    for x in sorted(a - b)[:12]: print(f"  {G}- {x[:110]}{RST}")
+    print(f"\n{B}uniquement dans l'autre :{RST}")
+    for x in sorted(b - a)[:12]: print(f"  {Y}+ {x[:110]}{RST}")
+
+def t_macho():
+    banner_title("INFOS MACH-O (macOS)")
+    if not need_sample(): return
+    out = subprocess.run(["otool", "-hv", SAMPLE["path"]], capture_output=True, text=True).stdout
+    print(f"{W}{out[:1500]}{RST}")
+    load = subprocess.run(["otool", "-l", SAMPLE["path"]], capture_output=True, text=True).stdout
+    for tag in ("LC_SEGMENT_64", "LC_UUID", "LC_CODE_SIGNATURE"):
+        print(f"  {G}{tag}{RST} ×{load.count(tag)}")
+
+def t_cryptoconst():
+    banner_title("CONSTANTES CRYPTO (AES S-box…)")
+    if not need_sample(): return
+    data = open(SAMPLE["path"], "rb").read()
+    AES_SBOX = bytes([0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76])
+    if AES_SBOX in data:
+        print(f"  {R}⚠️ TABLE AES S-BOX à l'offset 0x{data.index(AES_SBOX):x} — chiffrement AES embarqué{RST}")
+    else:
+        print(f"  {G}pas de table AES S-box complète{RST}")
+    for sig, name in ((b"-----BEGIN", "clé PEM embarquée"), (b"\x30\x82", "structure ASN.1")):
+        try:
+            if sig in data: print(f"  {Y}▸ {name}{RST}")
+        except Exception: pass
+
+def t_summary():
+    banner_title("RÉSUMÉ RE — tout en un")
+    for fn in (t_analyze, t_packed):
+        try: fn()
+        except Exception as e: print(f"{DIM}[{e}]{RST}")
+    print(f"\n{DIM}rapport dans rapports/{RST}")
+
+def t_memo():
+    banner_title("MÉMO — commandes r2 utiles")
+    print(f"""{W}  iI{RST} infos binaires   {W}iS{RST} sections      {W}ii{RST} imports    {W}iz{RST} strings data
+{W}  izz{RST} strings bin     {W}is~sym{RST} symboles   {W}aaa{RST} analyse    {W}afl{RST} fonctions
+{W}  pdf @ f{RST} décompile     {W}pdc @ f{RST} pseudo   {W}px 512{RST} hexdump    {W}agf{RST} graphe""")
+
 TOOLS = [
     ("0", "CHARGER UN ÉCHANTILLON", t_load, "choisis le binaire/fichier à analyser"),
     ("1", "ANALYSE RAPIDE", t_analyze, "type, entropie, hashes, vue d'ensemble"),
@@ -269,6 +358,14 @@ TOOLS = [
     ("9", "PSEUDO-DÉCOMPILATION", t_decompile, "pdc — pseudo-code lisible"),
     ("a", "CONSOLE R2 LIBRE", t_console, "toutes les commandes radare2 en direct"),
     ("b", "DÉTECTION PACKING", t_packed, "UPX, Themida, entropie"),
+    ("c", "OVERLAY PE", t_overlays, "données cachées après les sections"),
+    ("d", "STRINGS + OFFSETS", t_izz, "radare2 izz — les URLs localisées"),
+    ("e", "HEXDUMP", t_hexdump, "vue hexa à l'offset voulu"),
+    ("f", "DIFF BINAIRES", t_diffbin, "strings uniques de deux échantillons"),
+    ("g", "INFOS MACH-O", t_macho, "otool : segments, UUID, signature"),
+    ("h", "CONSTANTES CRYPTO", t_cryptoconst, "AES S-box, PEM, ASN.1"),
+    ("i", "RÉSUMÉ RE", t_summary, "analyse + packing + overlay en un coup"),
+    ("x", "MÉMO R2", t_memo, "les commandes radare2 utiles"),
 ]
 
 def menu():

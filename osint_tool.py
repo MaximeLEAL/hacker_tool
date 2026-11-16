@@ -359,6 +359,195 @@ def t_asn():
     except Exception as e:
         print(f"{R}[!] {e}{RST}")
 
+
+def t_dorks_osint():
+    banner_title("DORKS OSINT SUR LA PERSONNE / L'ORGANISATION")
+    t = TARGET["domain"] or TARGET["username"] or input(f"{B}{C}nom/domaine{RST} > ").strip()
+    if not t: return
+    dorks = [
+        ("Documents", f'"{t}" filetype:pdf'),
+        ("CV / resumes", f'"{t}" (filetype:pdf OR filetype:doc) CV'),
+        ("Pastebin", f'site:pastebin.com "{t}"'),
+        ("Gists", f'site:gist.github.com "{t}"'),
+        ("LinkedIn", f'site:linkedin.com "{t}"'),
+        ("Twitter/X", f'site:x.com "{t}"'),
+        ("Contacts", f'"{t}" (email OR contact OR tel)'),
+        ("Breach dumps", f'"{t}" (leak OR dump OR breach)'),
+        ("Spreadsheets", f'"{t}" (filetype:xls OR filetype:xlsx OR filetype:csv)'),
+        ("Photos", f'"{t}" filetype:jpg'),
+    ]
+    for name, q in dorks:
+        print(f"  {G}▸ {name:<18}{RST} {CY}https://www.google.com/search?q={urllib.parse.quote(q)}{RST}")
+    save_report("DORKS OSINT", "\n".join(f"{n}" for n, _ in dorks))
+
+def t_phones():
+    banner_title("TÉLÉPHONES & ADRESSES SUR LES PAGES")
+    d = TARGET["domain"]
+    if not d: print(f"{Y}[!] domaine requis{RST}"); return
+    phones, addrs = set(), set()
+    for p in ("/", "/contact", "/about", "/equipe"):
+        try:
+            html = http_get(f"https://{d}{p}", timeout=8)
+            phones.update(re.findall(r"(?:\+33|0)[1-9](?:[\s.-]?\d{2}){4}", html))
+            addrs.update(re.findall(r"\d{1,4}[\s,]+(?:rue|avenue|bd|boulevard|place|chemin)[\w\s,.-]{10,60}", html, re.I))
+        except Exception: continue
+    print(f"{B}{len(phones)} téléphone(s) :{RST}")
+    for p in sorted(phones): print(f"  {G}☎ {RST}{p}")
+    print(f"{B}{len(addrs)} adresse(s) potentielles :{RST}")
+    for a in sorted(addrs)[:8]: print(f"  {G}▸ {RST}{a}")
+    if phones: save_report("PHONES", "\n".join(sorted(phones)))
+
+def t_cert_org():
+    banner_title("ORGANISATION VIA LE CERTIFICAT TLS")
+    d = TARGET["domain"]
+    if not d: print(f"{Y}[!] domaine requis{RST}"); return
+    out = subprocess.run(["openssl", "s_client", "-connect", f"{d}:443"],
+                         capture_output=True, text=True, input="", timeout=15).stdout
+    for tag in ("subject=", "issuer="):
+        m = re.search(tag + r"([^\n]+)", out)
+        if m: print(f"  {G}{tag[:-1]}{RST} {m.group(1)[:120]}")
+    sans = re.findall(r"DNS:([\w.*.-]+)", out)
+    if sans:
+        print(f"  {G}SANs ({len(set(sans))}){RST} : {', '.join(sorted(set(sans))[:10])}")
+        save_report("CERT ORG", "\n".join(sorted(set(sans))))
+
+def t_tech():
+    banner_title("TECHNOLOGIES DU SITE")
+    d = TARGET["domain"]
+    if not d: print(f"{Y}[!] domaine requis{RST}"); return
+    try:
+        home = http_get(f"https://{d}", timeout=12)
+    except Exception as e:
+        print(f"{R}[!] {e}{RST}"); return
+    techs = []
+    for pat, name in ((r"wp-content", "WordPress"), (r"shopify", "Shopify"), (r"react", "React"),
+                      (r"vue\.js", "Vue"), (r"next\.js|__next", "Next.js"), (r"laravel_session", "Laravel"),
+                      (r"cloudflare", "Cloudflare"), (r"cdn-cgi", "Cloudflare CDN"),
+                      (r"googletagmanager|gtag", "GTM"), (r"stripe", "Stripe"),
+                      (r"wix", "Wix"), (r"squarespace", "Squarespace"),
+                      (r"shopware|prestashop|magento", "E-commerce")):
+        if re.search(pat, home, re.I): techs.append(name)
+    print(f"{B}détecté :{RST} {', '.join(techs) or '—'}")
+
+def t_first_snapshot():
+    banner_title("PREMIÈRE ARCHIVAGE WAYBACK (âge du site)")
+    d = TARGET["domain"]
+    if not d: print(f"{Y}[!] domaine requis{RST}"); return
+    try:
+        data = http_get(f"http://web.archive.org/cdx/search/cdx?url={d}&output=json&limit=3&filter=statuscode:200",
+                        timeout=25, as_json=True)
+        if len(data) > 1:
+            first = data[1]
+            print(f"  {G}premier archivage :{RST} {first[1][:10]}  {DIM}{first[2][:60]}{RST}")
+            years = (time.time() - __import__("calendar").time.strptime(first[1][:10], "%Y%m%d").mktime()) / 86400 / 365
+            print(f"  {G}âge ≈{RST} {years:.0f} ans")
+        else:
+            print(f"{Y}jamais archivé{RST}")
+    except Exception as e:
+        print(f"{R}[!] {e.__class__.__name__}{RST}")
+
+def t_socials_all():
+    banner_title("RÉSEAUX SOCIAUX SUR TOUTES LES PAGES")
+    d = TARGET["domain"]
+    if not d: print(f"{Y}[!] domaine requis{RST}"); return
+    socials = set()
+    for p in ("/", "/about", "/contact", "/team", "/a-propos"):
+        try:
+            html = http_get(f"https://{d}{p}", timeout=8)
+            socials.update(re.findall(r'https?://(?:www\.)?(?:twitter\.com|x\.com|linkedin\.com|facebook\.com|instagram\.com|youtube\.com|tiktok\.com|github\.com|t\.me)/[\w/.-]+', html))
+        except Exception: continue
+    print(f"{B}{len(socials)} réseaux sociaux de l'organisation :{RST}")
+    for s in sorted(socials): print(f"  {G}▸ {RST}{s}")
+    if socials: save_report("SOCIALS", "\n".join(sorted(socials)))
+
+def t_dnsdeep():
+    banner_title("DNS PROFOND — fournisseurs détectés")
+    d = TARGET["domain"]
+    if not d: print(f"{Y}[!] domaine requis{RST}"); return
+    txt = subprocess.run(["dig", "+short", "TXT", d], capture_output=True, text=True).stdout
+    for line in txt.splitlines():
+        if "google-site-verification" in line: print(f"  {G}▸ {RST}Google Search Console vérifié")
+        if "facebook-domain-verification" in line: print(f"  {G}▸ {RST}Facebook vérifié")
+        if "MS=" in line or "ms=" in line: print(f"  {G}▸ {RST}Microsoft 365 vérifié")
+        if "v=spf1" in line:
+            for inc in re.findall(r"include:(\S+)", line):
+                print(f"  {G}▸ SPF include{RST} {inc}")
+        if "_domainkey" in line: print(f"  {G}▸ {RST}DKIM {line[:60]}")
+    ns = subprocess.run(["dig", "+short", "NS", d], capture_output=True, text=True).stdout
+    print(f"  {G}▸ NS{RST} {', '.join(ns.split())}")
+    save_report("DNS DEEP", "\n".join(txt.splitlines()[:10]))
+
+def t_emailgen():
+    banner_title("GÉNÉRATEUR D'ADRESSES PROBABLES (format entreprise)")
+    d = TARGET["domain"]
+    if not d: print(f"{Y}[!] domaine requis{RST}"); return
+    fn = input(f"{B}{C}prénom{RST} > ").strip().lower()
+    ln = input(f"{B}{C}nom{RST} > ").strip().lower()
+    if not fn or not ln: return
+    patterns = [f"{fn}.{ln}", f"{fn}{ln}", f"{fn[0]}{ln}", f"{fn[0]}.{ln}", f"{fn}_{ln}",
+                f"{fn}.{ln[0]}", f"{ln}.{fn}", f"{ln}{fn[0]}", f"{fn}", f"{ln}"]
+    print(f"{B}adresses probables :{RST}")
+    for p in patterns:
+        print(f"  {G}✉ {RST}{p}@{d}")
+    print(f"\n{DIM}vérifie l'existence : Forensics Email après un test d'envoi, ou via le MX{RST}")
+    save_report("EMAILGEN", f"\n".join(f"{p}@{d}" for p in patterns))
+
+def t_report_osint():
+    banner_title("RÉSUMÉ OSINT")
+    t = TARGET["domain"] or TARGET["username"]
+    path = os.path.join(RAPPORTS, f"osint_{t.replace('.', '_').replace('/', '_')}.txt") if t else None
+    print(CY + open(path).read()[-2500:] if path and os.path.exists(path) else f"{Y}aucun rapport{RST}")
+
+
+def t_wayback_timeline():
+    banner_title("TIMELINE D'ARCHIVAGE (par année)")
+    d = TARGET["domain"]
+    if not d: print(f"{Y}[!] domaine requis{RST}"); return
+    try:
+        data = http_get(f"http://web.archive.org/cdx/search/cdx?url={d}&output=json&collapse=timestamp:4&fl=timestamp,statuscode",
+                        timeout=30, as_json=True)
+        years = {}
+        for row in data[1:]:
+            years[row[0][:4]] = years.get(row[0][:4], 0) + 1
+        print(f"{B}{len(years)} années archivées :{RST}")
+        for y in sorted(years): print(f"  {C}{y}{RST} {'█' * min(years.get(y, 1), 40)} {years[y]}")
+    except Exception as e:
+        print(f"{R}[!] {e.__class__.__name__}{RST}")
+
+def t_people_links():
+    banner_title("MOTEURS DE RECHERCHE PERSONNE — liens prêts")
+    name = input(f"{B}{C}nom complet{RST} > ").strip()
+    if not name: return
+    q = urllib.parse.quote(f'"{name}"')
+    engines = [
+        ("Google", f"https://www.google.com/search?q={q}"),
+        ("Bing", f"https://www.bing.com/search?q={q}"),
+        ("Yandex", f"https://yandex.com/search/?text={q}"),
+        ("DuckDuckGo", f"https://duckduckgo.com/?q={q}"),
+        ("LinkedIn", f"https://www.google.com/search?q=site:linkedin.com/in+{q}"),
+        ("Facebook", f"https://www.google.com/search?q=site:facebook.com+{q}"),
+        ("Mastodon", f"https://www.google.com/search?q=site:mastodon.social+{q}"),
+        ("Images", f"https://www.google.com/search?q={q}&tbm=isch"),
+    ]
+    for name_, url in engines:
+        print(f"  {G}▸ {name_:<12}{RST} {CY}{url[:100]}{RST}")
+    save_report("PEOPLE", f"{name}")
+
+def t_card():
+    banner_title("CARTE D'IDENTITÉ — résumé de tout l'OSINT")
+    t = TARGET["domain"] or TARGET["username"]
+    path = os.path.join(RAPPORTS, f"osint_{t.replace('.', '_').replace('/', '_')}.txt") if t else None
+    if not path or not os.path.exists(path):
+        print(f"{Y}lance d'abord quelques scans OSINT{RST}"); return
+    content = open(path).read()
+    emails = set(re.findall(r"[\w.+-]+@[\w-]+\.[\w.-]{2,12}", content))
+    socials = set(re.findall(r"https?://(?:x\.com|github\.com|linkedin\.com|instagram\.com|facebook\.com)/[\w/.-]+", content))
+    print(f"{B}CIBLE :{RST} {t}")
+    print(f"  {G}emails{RST}    : {', '.join(sorted(emails)[:8]) or '—'}")
+    print(f"  {G}profils{RST}   : {len(socials)}")
+    for s in sorted(socials)[:8]: print(f"    {CY}▸ {s[:70]}{RST}")
+    print(f"  {DIM}rapport complet : {path}{RST}")
+
 TOOLS = [
     ("1", "USERNAME 20 PLATEFORMES", t_username, "twitter, github, instagram, reddit…"),
     ("2", "GRAVATAR PAR EMAIL", t_gravatar, "le compte gravatar révèle le profil"),
@@ -368,6 +557,18 @@ TOOLS = [
     ("6", "ASN & HÉBERGEMENT", t_asn, "datacenter ? proxy ? organisation réelle"),
     ("7", "MAIGRET (300+ sites)", t_maigret, "le tool OSINT de référence — si pip3 install maigret"),
     ("8", "GITHUB DORKS", t_github_dorks, "recherches secrets/clés prêtes dans l'orga"),
+    ("a", "DORKS OSINT", t_dorks_osint, "10 dorks prêts pour la personne/l'orga"),
+    ("b", "TÉLÉPHONES & ADRESSES", t_phones, "extraits des pages publiques"),
+    ("c", "ORG VIA CERTIFICAT", t_cert_org, "le cert TLS révèle l'organisation"),
+    ("d", "TECHNOLOGIES", t_tech, "le stack du site"),
+    ("e", "ÂGE DU SITE", t_first_snapshot, "premier archivage wayback"),
+    ("f", "RÉSEAUX SOCIAUX ALL", t_socials_all, "sur toutes les pages"),
+    ("g", "DNS PROFOND", t_dnsdeep, "vérifications et fournisseurs"),
+    ("h", "EMAILS PROBABLES", t_emailgen, "formats d'adresses de l'entreprise"),
+    ("i", "RÉSUMÉ OSINT", t_report_osint, "relit tous tes scans"),
+    ("j", "TIMELINE WAYBACK", t_wayback_timeline, "l'âge du site année par année"),
+    ("k", "MOTEURS PERSONNE", t_people_links, "8 moteurs de recherche prêts"),
+    ("l", "CARTE D'IDENTITÉ", t_card, "résumé de tout l'OSINT"),
 ]
 
 def menu():

@@ -1,62 +1,108 @@
-# 🕶️ HACKER_TOOL — la famille d'outils du hacker
+<div align="center">
 
-**La boîte à outils de reconnaissance · powered by Maxime Leal**
+# 🕶️ HACKER_TOOL
 
-## Les tools
-| Tool | Couleur | Fichier | Chaîne |
+**7 tools · 150+ outils · la trousse complète du hacker éthique**
+
+*powered by Maxime Leal*
+
+[![Tools](https://img.shields.io/badge/tools-150%2B-e63022?style=for-the-badge&labelColor=0c0e17)]()
+[![Famille](https://img.shields.io/badge/famille-7_tools-ffd60a?style=for-the-badge&labelColor=0c0e17)]()
+[![Python](https://img.shields.io/badge/Python-3-3776AB?style=for-the-badge&logo=python&logoColor=white)]()
+[![Statique](https://img.shields.io/badge/analyse-statique_only-4ad66d?style=for-the-badge&labelColor=0c0e17)]()
+
+</div>
+
+---
+
+## 🎨 La famille — chaque tool a sa couleur et son identité
+
+| | Tool | Tools | La question à laquelle il répond |
 |---|---|---|---|
-| 🕶️ RECON TOOL | vert | RECON.tool ✓ | qu'est-ce qui est exposé ? — 23 tools, wordlists SecLists |
-| 🔴 VULN TOOL | rouge | VULN.tool ✓ | qu'est-ce qui est vulnérable ? (NVD + CISA KEV) |
-| 🔮 HASH TOOL | violet | HASH.tool ✓ | la trousse crypto des CTFs : identifier/casser des hashes, PoW, décodeurs |
-| 🟡 HUNT TOOL | or | HUNT.tool ✓ | bug bounty : subdomain takeover, secrets dans les JS |
-| 🔵 OSINT DEEP | cyan | OSINT.tool ✓ | profiler une organisation — 482 plateformes sherlock |
-| ⚪ NET SNIFF | blanc | SNIFF.tool ✓ | audit du réseau local |
-| 🔍 RE TOOL | magenta | RE.tool ✓ | reverse engineering : radare2 embarqué (12 tools) — statique only |
+| 🕶️ | **RECON** — vert | **23** | *qu'est-ce qui est exposé ?* |
+| 🔴 | **VULN** — rouge | **20** | *qu'est-ce qui est vulnérable ?* |
+| 🔮 | **HASH** — violet | **20** | *le flag CTF se casse comment ?* |
+| 🟡 | **HUNT** — or | **20** | *qu'est-ce qui rapporte en bounty ?* |
+| 🔵 | **OSINT DEEP** — cyan | **20** | *qui est derrière ?* |
+| ⚪ | **NET SNIFF** — blanc | **20** | *qu'est-ce qui circule sur mon réseau ?* |
+| 🔍 | **RE** — magenta | **20** | *comment ce binaire fonctionne ?* |
 
-Double-clique le .tool de ton choix.
+Chaque tool : **splash matrix plein écran** dans sa couleur + logo ASCII + menu numéroté + rapports sauvegardés dans `rapports/`.
 
-## RE TOOL — reverse engineering (12 tools)
-0. CHARGER UN ÉCHANTILLON · 1. ANALYSE RAPIDE · 2. INFOS RADARE2 · 3. SECTIONS · 4. STRINGS FILTRÉES
-5. IMPORTS · 6. SYMBOLES · 7. FONCTIONS (aaa) · 8. DÉSASSEMBLAGE · 9. PSEUDO-DÉCOMPILATION (pdc)
-a. CONSOLE R2 LIBRE · b. DÉTECTION PACKING — analyse STATIQUE uniquement, rien n'est exécuté
+## 🚀 Lancement
 
-## OSINT DEEP (8 tools)
-1. USERNAME 60+ PLATEFORMES · 2. GRAVATAR PAR EMAIL · 3. GITHUB OSINT (+emails des commits) · 4. ORG & INFRA
-5. PAGES ÉQUIPE · 6. ASN & HÉBERGEMENT · 7. MAIGRET (300+ sites si installé) · 8. GITHUB DORKS (secrets/clés)
+```bash
+git clone https://github.com/MaximeLEAL/hacker_tool.git
+cd hacker_tool
+# double-clique le .tool de ton choix, ou :
+python3 recon_tool.py
+```
 
-## HUNT TOOL — bug bounty (6 tools)
-1. SUBDOMAIN TAKEOVER · 2. SECRETS DANS LES JS · 3. CORS · 4. PARAMÈTRES & FORMS · 5. WAYBACK · 6. MÉMO BOUNTY
+## 🕶️ RECON (23 tools) — la reconnaissance
+whois · DNS (7 types) · subdomains (crt.sh) · geoloc IP · headers + audit sécurité ·
+fingerprinting · 30 ports · ping sweep LAN · robots/sitemap · emails & sociaux ·
+**DNS brute force 5000 wordlist** · **directory brute** · **TLS/certificat complet** ·
+méthodes HTTP · cookies · WordPress enum · API docs (swagger/graphql) · endpoints JS ·
+HTML comments · SPF/DKIM/DMARC · **zone transfer AXFR** · reverse DNS · ports custom
 
-## OSINT DEEP (6 tools)
-1. USERNAME 20 PLATEFORMES · 2. GRAVATAR PAR EMAIL · 3. GITHUB OSINT (+emails des commits) · 4. ORG & INFRA · 5. PAGES ÉQUIPE · 6. ASN & HÉBERGEMENT
+## 🔴 VULN (20 tools) — les vulnérabilités
+recherche CVE (NVD) · **CISA KEV** (failles activement exploitées) · banner grabbing ·
+version→CVE · top CVEs récentes · KEV par produit · détail CVE (CVSS, références) ·
+scan complet auto · KEV par mot-clé · **failles ransomware** · CVEs des 30 derniers jours ·
+CWE top · liens exploit (NVD/EDB/Nuclei/Metasploit) · banner sweep LAN · SSL scan ·
+**audit /etc/hosts** · audit DNS · résumé exécutif · **KEV diff** (les nouvelles) · liens Shodan/Censys/VT
 
-## NET SNIFF (7 tools)
-1. CONNEXIONS LIVE · 2. TABLE ARP · 3. TRACEROUTE · 4. PORTS EN ÉCOUTE · 5. SESSIONS · 6. INFOS WIFI · 7. CONFIG DNS
+## 🔮 HASH (20 tools) — la crypto des CTFs
+identifier un hash · dictionnaire (+leet) · bruteforce · **solveur PoW multi-thread** ·
+décodeur universel · césar/vigenère/morse · XOR cracker · rainbow local ·
+**dictionnaire 100k SecLists** · crack fichier de hashes · unix crypt · morse encoder ·
+encodeurs · rot-N auto-crack · vigenère IoC · fréquence substitution · convertisseur ·
+générateur secure · salted MD5 · double hash
 
-## HASH TOOL — la trousse crypto (8 tools)
-1. IDENTIFIER UN HASH · 2. DICTIONNAIRE (+leet) · 3. BRUTEFORCE · 4. SOLVEUR PoW
-5. DÉCODEUR UNIVERSEL · 6. CLASSIQUES (césar/vigenère/morse) · 7. XOR CRACKER · 8. RAINBOW LOCAL
+## 🟡 HUNT (20 tools) — le bug bounty
+subdomain takeover (15 services) · **secrets dans les JS** (AWS, Google, Stripe, JWT…) ·
+CORS mal configuré · paramètres & formulaires · wayback · mémo bounty ·
+directory brute · open redirect · subs→IP→hébergeur · wayback profond · Google dorks ·
+headers par sub · stack par sub · métadonnées · mini-crawler · détection honeypot ·
+XSS marqueur bénin · audit CSP · source maps exposées · résumé
 
-## BOOST GitHub (gt_lib.py) — les ressources publiques téléchargées et mises en cache
-SecLists (subdomains 5000 · dirs · params · usernames · passwords) · base sherlock 482 plateformes
+## 🔵 OSINT DEEP (20 tools) — le profiling
+username sur **482 plateformes** (base sherlock GitHub) · gravatar par email ·
+GitHub OSINT (+emails des commits) · org & infrastructure · pages équipe · ASN ·
+**maigret** (300+ sites) · GitHub dorks · dorks OSINT · téléphones & adresses ·
+org via certificat TLS · technologies · âge du site · réseaux sociaux · DNS profond ·
+emails probables · timeline wayback · moteurs personne · carte d'identité
 
-## RECON — la boîte à outils (23 tools)
+## ⚪ NET SNIFF (20 tools) — ton réseau
+connexions live · table ARP · traceroute · ports en écoute · sessions · infos wifi ·
+config DNS · ports du LAN · connexions par process · **firewall macOS** · ARP watch ·
+débit live · traceroute LAN · ping monitor · wifi autour · **test DNS hijack** ·
+interfaces · ports à risque · géolocalisation des connexions · snapshot complet
 
-## La boîte à outils (10 tools)
-| # | Tool | Ce qu'il fait |
-|---|---|---|
-| 1 | WHOIS COMPLET | registre, registrar, dates, serveurs |
-| 2 | ENUMÉRATION DNS | A · AAAA · MX · NS · TXT · SOA · CNAME |
-| 3 | SOUS-DOMAINES | découverte par Certificate Transparency (crt.sh) |
-| 4 | GÉOLOCALISATION IP | pays, ville, FAI, AS, carte |
-| 5 | HEADERS + SÉCURITÉ | headers complets + audit des 6 security headers |
-| 6 | FINGERPRINTING | technos, CMS, chemins exposés |
-| 7 | SCAN DE PORTS | les 30 ports les plus utilisés |
-| 8 | PING SWEEP LAN | appareils vivants sur le réseau local |
-| 9 | ROBOTS & SITEMAP | ce que le site déclare aux crawlers |
-| 0 | EMAILS & SOCIAUX | emails publics + réseaux sociaux liés |
+## 🔍 RE (20 tools) — le reverse engineering (radare2 embarqué)
+analyse rapide · infos r2 · sections · strings filtrées · imports · symboles ·
+fonctions (aaa) · désassemblage (pdf) · pseudo-décompilation (pdc) · console R2 libre ·
+détection packing · **overlay PE** · strings+offsets (izz) · hexdump · diff binaires ·
+infos Mach-O · **constantes crypto** (AES S-box) · résumé · mémo r2
 
-Plus : animation matrix au lancement, logo mask, rapports sauvegardés
-dans `rapports/` par cible.
+## ⚡ Le BOOST GitHub (gt_lib.py)
 
-⚠️ **Usage : uniquement sur des cibles que tu es autorisé à tester.**
+Tous les tools partagent un système de **ressources publiques téléchargées et mises en cache** :
+- **SecLists** (danielmiessler) — 5000 subdomains, wordlists de directories/params/passwords (1M)
+- **Sherlock** (sherlock-project) — la base de 482 plateformes d'OSINT
+
+## ⚖️ Usage
+
+Ces outils sont conçus pour **l'apprentissage, les CTFs et les audits autorisés**.
+Reconnaissance passive et analyse statique uniquement — rien n'est exécuté, rien
+n'est intrusif. Utilise-les uniquement sur des cibles que tu es autorisé à tester.
+
+---
+
+<div align="center">
+
+**HACKER_TOOL · 7 TOOLS · 150+ OUTILS · ANALYSE STATIQUE · 100% LOCAL**
+
+*powered by Maxime Leal*
+
+</div>

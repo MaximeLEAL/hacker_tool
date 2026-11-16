@@ -5,6 +5,8 @@
 #  powered by Maxime Leal
 # ═══════════════════════════════════════════════════════════════════
 import os, sys, hashlib, itertools, base64, time, threading, string, shutil, urllib.parse, codecs
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gt_lib
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 RAPPORTS = os.path.join(ROOT, "rapports")
@@ -322,6 +324,207 @@ def t_rainbow():
                 return
     print(f"\n{R}pas trouvé ({n} variations) — c'est un hash non-courant{RST}")
 
+
+# ─────────────────────── BOOST — les 12 nouveaux ───────────────────────
+def t_wordlist100k():
+    banner_title("DICTIONNAIRE 100K — wordlist SecLists (GitHub)")
+    target = input(f"{B}{V}hash à casser{RST} > ").strip().lower()
+    if not target: return
+    algo, hfn = pick_hash()
+    try:
+        wl = gt_lib.lines("passwords-common.txt")
+    except Exception as e:
+        print(f"{R}[!] {e}{RST}"); return
+    print(f"{DIM}{len(wl):,} mots — attaque en cours…{RST}")
+    t0 = time.time()
+    for i, w in enumerate(wl):
+        if hfn(w.encode()).hexdigest() == target:
+            print(f"\n{B}{G}🎯 CASSÉ !{RST} {W}{w}{RST}  {DIM}(position {i:,}, {time.time()-t0:.2f}s){RST}")
+            save_report("100K", f"{target} → {w}")
+            return
+    print(f"\n{R}pas trouvé ({len(wl):,} mots, {time.time()-t0:.1f}s) — le mot de passe n'est pas courant{RST}")
+
+def t_hashfile():
+    banner_title("CRACKER UN FICHIER DE HASHES")
+    algo, hfn = pick_hash()
+    path = input(f"{DIM}fichier de hashes (un par ligne){RST} > ").strip()
+    if not path or not os.path.exists(os.path.expanduser(path)):
+        print(f"{R}fichier introuvable{RST}"); return
+    hashes = [l.strip().lower() for l in open(os.path.expanduser(path)) if l.strip()]
+    wl = list(WORDS)
+    try:
+        wl = gt_lib.lines("passwords-common.txt")[:100000]
+    except Exception: pass
+    print(f"{DIM}{len(hashes)} hashes × {len(wl):,} mots{RST}")
+    found = {}
+    for w in wl:
+        h = hfn(w.encode()).hexdigest()
+        if h in hashes: found[h] = w
+    print(f"\n{B}{len(found)} cassé(s) sur {len(hashes)} :{RST}")
+    for h, w in found.items(): print(f"  {G}{h[:16]}…{RST} → {W}{w}{RST}")
+    if found: save_report("HASHFILE", "\n".join(f"{h} → {w}" for h, w in found.items()))
+
+def t_unix_crypt():
+    banner_title("CRACKER UN HASH UNIX ($6$ · $1$ · $5$)")
+    target = input(f"{B}{V}hash complet (ex: $6$salt$hash...){RST} > ").strip()
+    if not target.startswith("$"): print(f"{R}format crypt requis{RST}"); return
+    import crypt
+    algo_id = target.split("$")[1]
+    salt = "$" + algo_id + "$" + target.split("$")[2]
+    print(f"{DIM}algo crypt: {algo_id} · salt: {salt}{RST}")
+    t0 = time.time()
+    for w in WORDS:
+        try:
+            if crypt.crypt(w, salt) == target:
+                print(f"\n{B}{G}🎯 CASSÉ !{RST} {W}{w}{RST}  {DIM}({time.time()-t0:.2f}s){RST}")
+                save_report("UNIX CRYPT", f"{target[:30]} → {w}")
+                return
+        except Exception: break
+    print(f"{R}pas trouvé dans la wordlist intégrée{RST}")
+
+def t_morse_enc():
+    banner_title("MORSE ENCODEUR")
+    s = input(f"{B}{V}texte{RST} > ").strip()
+    if not s: return
+    MORSE = {"a": ".-", "b": "-...", "c": "-.-.", "d": "-..", "e": ".", "f": "..-.",
+             "g": "--.", "h": "....", "i": "..", "j": ".---", "k": "-.-", "l": ".-..",
+             "m": "--", "n": "-.", "o": "---", "p": ".--.", "q": "--.-", "r": ".-.",
+             "s": "...", "t": "-", "u": "..-", "v": "...-", "w": ".--", "x": "-..-",
+             "y": "-.--", "z": "--..", "0": "-----", "1": ".----", "2": "..---",
+             "3": "...--", "4": "....-", "5": ".....", "6": "-....", "7": "--...",
+             "8": "---..", "9": "----.", " ": "/"}
+    out = " ".join(MORSE.get(c, "") for c in s.lower())
+    print(f"\n{V}morse :{RST} {W}{out}{RST}")
+    save_report("MORSE", out)
+
+def t_encoders():
+    banner_title("ENCODEURS (cacher plutôt que décoder)")
+    s = input(f"{B}{V}texte à encoder{RST} > ").strip()
+    if not s: return
+    b = s.encode()
+    print(f"  {G}base64{RST}   {base64.b64encode(b).decode()}")
+    print(f"  {G}hex{RST}       {b.hex()}")
+    print(f"  {G}base32{RST}   {base64.b32encode(b).decode()}")
+    print(f"  {G}base85{RST}   {base64.b85encode(b).decode()}")
+    print(f"  {G}URL{RST}      {urllib.parse.quote(s)}")
+    print(f"  {G}binaire{RST}  {' '.join(format(c, '08b') for c in b[:10])}…")
+    print(f"  {G}rot13{RST}    {codecs.decode(s, 'rot13')}")
+    save_report("ENCODEURS", s)
+
+def t_rotn_auto():
+    banner_title("ROT-N AUTO-CRACK (scoring anglais)")
+    s = input(f"{B}{V}texte chiffré{RST} > ").strip()
+    if not s: return
+    common = "etaoinshrdlucmfwypvbgkjqxz"
+    results = []
+    for k in range(26):
+        dec = "".join(chr((ord(c) - 97 + k) % 26 + 97) if c.islower()
+                      else chr((ord(c) - 65 + k) % 26 + 65) if c.isupper() else c for c in s)
+        freq = sum(common.index(c) for c in dec.lower() if c in common) / max(len(dec), 1)
+        results.append((freq, k, dec))
+    results.sort()
+    print(f"{B}3 meilleurs décalages (par fréquence anglaise) :{RST}")
+    for freq, k, dec in results[:3]:
+        print(f"  {V}rot-{k:<3}{RST} {W}{dec[:100]}{RST}  {DIM}(score {freq:.0f}){RST}")
+
+def t_vigenere_ioc():
+    banner_title("VIGENÈRE — INDICE DE COÏNCIDENCE (longueur de clé)")
+    s = input(f"{B}{V}texte chiffré{RST} > ").strip().lower()
+    s = "".join(c for c in s if c.isalpha())
+    if len(s) < 20: print(f"{R}trop court (20+ chars){RST}"); return
+    print(f"{B}IoC par longueur de clé (≈0.066 = anglais mono-alphabétique) :{RST}")
+    best = []
+    for klen in range(1, 13):
+        if klen > len(s) // 5: break
+        ics = []
+        for i in range(klen):
+            sub = s[i::klen]
+            n = len(sub)
+            if n < 2: break
+            freq = {}
+            for c in sub: freq[c] = freq.get(c, 0) + 1
+            ic = sum(c * (c - 1) for c in freq.values()) / (n * (n - 1)) if n > 1 else 0
+            ics.append(ic)
+        avg = sum(ics) / len(ics) if ics else 0
+        best.append((avg, klen))
+        print(f"  {V}clé {klen:<3}{RST} IoC {avg:.4f}  {'⭐ probable' if avg > 0.058 else ''}")
+    best.sort(reverse=True)
+    if best: print(f"\n{DIM}→ essaie une clé de {best[0][1]} caractères{RST}")
+
+def t_freq():
+    banner_title("ANALYSE DE FRÉQUENCE (substitution)")
+    s = input(f"{B}{V}texte chiffré{RST} > ").strip().lower()
+    s = "".join(c for c in s if c.isalpha())
+    if not s: return
+    freq = {}
+    for c in s: freq[c] = freq.get(c, 0) + 1
+    print(f"{B}fréquence du chiffré (triée) vs fréquence anglaise attendue :{RST}")
+    english = "etaoinshrdlcumwfgypbvkjxqz"
+    for c, n in sorted(freq.items(), key=lambda x: -x[1]):
+        idx = english.index(c) if c in english else 26
+        print(f"  {V}{c}{RST} ×{n:<3} {DIM}→ remplace probablement '{english[idx]}'{RST}")
+    print(f"\n{DIM}casse le code en remplaçant dans cet ordre (option 9 du menu classique){RST}")
+
+def t_conv():
+    banner_title("CONVERTISSEUR INTERACTIF")
+    s = input(f"{B}{V}texte{RST} > ").strip()
+    if not s: return
+    b = s.encode()
+    print(f"  {G}hex{RST}       {b.hex()}")
+    print(f"  {G}binaire{RST}  {' '.join(format(c, '08b') for c in b)}")
+    print(f"  {G}base64{RST}   {base64.b64encode(b).decode()}")
+    print(f"  {G}base32{RST}   {base64.b32encode(b).decode()}")
+    print(f"  {G}URL{RST}      {urllib.parse.quote(s)}")
+    print(f"  {G}decimal{RST}  {' '.join(str(c) for c in b)}")
+    print(f"  {G}rot13{RST}    {codecs.decode(s, 'rot13')}")
+
+def t_pwgen():
+    banner_title("GÉNÉRATEUR SECURE (MDP + UUID)")
+    import uuid
+    length = int(input(f"{DIM}longueur [20]{RST} > ") or 20)
+    cs = string.ascii_letters + string.digits + "!@#$%^&*-_+?"
+    pw = "".join(random.SystemRandom().choice(cs) for _ in range(length))
+    print(f"\n  {B}{W}{pw}{RST}")
+    print(f"  {DIM}entropie ≈ {length * math.log2(len(cs)):.0f} bits{RST}")
+    for _ in range(3):
+        print(f"  {V}{str(uuid.uuid4())}{RST}")
+    save_report("PWGEN", pw)
+
+def t_hashfilemode(): pass  # réservé
+
+
+def t_salted():
+    banner_title("SALTED MD5 — md5(salt+pass) ou md5(pass+salt)")
+    target = input(f"{B}{V}hash{RST} > ").strip().lower()
+    salt = input(f"{B}{V}salt (connu du CTF){RST} > ").strip()
+    if not target or not salt: return
+    algo, hfn = pick_hash()
+    t0 = time.time()
+    for mode in ("salt+pass", "pass+salt"):
+        for w in WORDS:
+            v = (salt + w) if mode == "salt+pass" else (w + salt)
+            if hfn(v.encode()).hexdigest() == target:
+                print(f"\n{B}{G}🎯 CASSÉ !{RST} {W}{w}{RST}  {DIM}(mode {mode}, {time.time()-t0:.2f}s){RST}")
+                save_report("SALTED", f"{target} → {w} ({mode})")
+                return
+    print(f"{R}pas trouvé{RST}")
+
+def t_double():
+    banner_title("DOUBLE HASH — md5(md5(pw)) · sha256(sha256(pw))")
+    target = input(f"{B}{V}hash{RST} > ").strip().lower()
+    if not target: return
+    algo, hfn = pick_hash()
+    t0 = time.time()
+    for w in WORDS:
+        h1 = hfn(w.encode()).hexdigest()
+        if hfn(h1.encode()).hexdigest() == target:
+            print(f"\n{B}{G}🎯 CASSÉ !{RST} {W}{w}{RST}  {DIM}(double {algo}, {time.time()-t0:.2f}s){RST}")
+            save_report("DOUBLE", f"{target} → {w}")
+            return
+    print(f"{R}pas trouvé{RST}")
+
+TOOLS = []  # placeholder (remplacé plus bas)
+
 TOOLS = [
     ("1", "IDENTIFIER UN HASH", t_identify, "md5? sha1? bcrypt? — détection par format"),
     ("2", "DICTIONNAIRE", t_dictionary, "wordlist intégrée + leet + wordlist perso"),
@@ -331,6 +534,18 @@ TOOLS = [
     ("6", "CHIFFREMENTS CLASSIQUES", t_classic, "césar ×26 · vigenère · morse · binaire"),
     ("7", "XOR CRACKER", t_xor, "mono-octet par fréquence + clé répétée"),
     ("8", "RAINBOW LOCAL", t_rainbow, "variations de mots courants, sans internet"),
+    ("a", "DICTIONNAIRE 100K", t_wordlist100k, "wordlist SecLists 100000 mots (GitHub)"),
+    ("b", "CRACK FICHIER HASHES", t_hashfile, "un fichier de hashes → dictionnaire"),
+    ("c", "UNIX CRYPT ($6$)", t_unix_crypt, "les hashes de /etc/shadow"),
+    ("d", "MORSE ENCODEUR", t_morse_enc, "texte → morse"),
+    ("e", "ENCODEURS", t_encoders, "base64 · hex · base32 · base85 · URL"),
+    ("f", "ROT-N AUTO-CRACK", t_rotn_auto, "les 26 décalages scorés par anglais"),
+    ("g", "VIGENÈRE IoC", t_vigenere_ioc, "trouve la longueur de clé"),
+    ("h", "FRÉQUENCE SUBSTITUTION", t_freq, "aide au décodage par substitution"),
+    ("i", "CONVERTISSEUR", t_conv, "hex · binaire · base64 · base32 · URL · décimal"),
+    ("j", "GÉNÉRATEUR SECURE", t_pwgen, "mdp fort + UUID v4"),
+    ("k", "SALTED MD5", t_salted, "md5(salt+pass) / md5(pass+salt)"),
+    ("l", "DOUBLE HASH", t_double, "md5(md5(pw)) · sha256(sha256(pw))"),
 ]
 
 def menu():

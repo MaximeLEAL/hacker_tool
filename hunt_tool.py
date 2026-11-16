@@ -4,7 +4,9 @@
 #  HUNT TOOL — bug bounty workflow · hacker_tool
 #  powered by Maxime Leal
 # ═══════════════════════════════════════════════════════════════════
-import os, sys, subprocess, re, json, time, random, socket, shutil, hashlib
+import os, sys, subprocess, re, json, time, random, socket, shutil, hashlib, urllib.error
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gt_lib
 import urllib.request, urllib.parse, urllib.error
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -259,6 +261,264 @@ def t_scope():
 {W}Plateformes :{RST} hackerone.com · bugcrowd.com · intigriti.com · yeswehack.com
 {W}Programmes :{RST} google.com/about/appsecurity · apple security bounty · microsoft msrc""")
 
+
+def t_dirbrute():
+    banner_title("DIRECTORY BRUTE FORCE — SecLists (GitHub)")
+    base = f"https://{TARGET['domain']}"
+    try: wl = gt_lib.lines("dirs-common.txt")
+    except Exception as e: print(f"{R}[!] {e}{RST}"); return
+    print(f"{DIM}{len(wl)} chemins, 40 threads…{RST}\n")
+    def chk(p):
+        try:
+            req = urllib.request.Request(base + "/" + p, headers={"User-Agent": UA})
+            with urllib.request.urlopen(req, timeout=5) as r:
+                return (p, r.status, len(r.read())) if r.status < 400 else None
+        except urllib.error.HTTPError as e:
+            return (p, e.code, 0) if e.code < 400 else None
+        except Exception: return None
+    with ThreadPoolExecutor(40) as ex:
+        hits = [x for x in ex.map(chk, wl) if x]
+    print(f"{B}{len(hits)} chemin(s) :{RST}")
+    for p, c, sz in sorted(hits): print(f"  {G}{c}{RST} /{p}  {DIM}{sz:,} o{RST}")
+    save_report("DIR BRUTE", "\n".join(f"{c} /{p}" for p, c, _ in sorted(hits)))
+
+def t_redirect():
+    banner_title("OPEN REDIRECT — params de redirection courants")
+    base = f"https://{TARGET['domain']}"
+    evil = "https://exemple-redirect-test.com"
+    params = ["next", "url", "redirect", "redirect_to", "return", "returnTo", "return_url",
+              "goto", "target", "dest", "destination", "continue", "link", "r", "u"]
+    for p in params:
+        try:
+            req = urllib.request.Request(f"{base}/?{p}={urllib.parse.quote(evil)}", headers={"User-Agent": UA})
+            with urllib.request.urlopen(req, timeout=8) as r:
+                loc = r.url
+            if evil in loc:
+                print(f"  {B}{R}🎯 OPEN REDIRECT via '{p}' → {loc[:80]}{RST}")
+        except Exception: continue
+    print(f"{DIM}testé {len(params)} params — un redirect non bloqué apparaît ici{RST}")
+
+def t_resolve():
+    banner_title("SOUS-DOMAINES → IP → HÉBERGEUR")
+    subs = get_subs()[:30]
+    if not subs: print(f"{R}pas de sous-domaines{RST}"); return
+    seen_ips = {}
+    for s in subs[:25]:
+        try:
+            ip = socket.gethostbyname(s)
+            seen_ips.setdefault(ip, []).append(s)
+        except Exception: continue
+    print(f"{B}{len(seen_ips)} IP(s) distinctes :{RST}")
+    for ip, ss in seen_ips.items():
+        try:
+            j = http_get(f"http://ip-api.com/json/{ip}?fields=org,isp,as", as_json=True)
+            org = f"{j.get('org') or j.get('isp') or '?'}"
+        except Exception: org = "?"
+        print(f"  {G}{ip:<16}{RST} {CY}{org[:40]}{RST}")
+        for s in ss[:4]: print(f"      {DIM}▸ {s}{RST}")
+    save_report("RESOLVE", "\n".join(f"{ip}: {', '.join(ss)}" for ip, ss in seen_ips.items()))
+
+def t_archive_deep():
+    banner_title("WAYBACK PROFOND — sous-domaines inclus")
+    d = TARGET["domain"]
+    try:
+        data = http_get(f"http://web.archive.org/cdx/search/cdx?url=*.{d}/*&output=json&collapse=urlkey&limit=400",
+                        timeout=40, as_json=True)
+        urls = sorted({row[2] for row in data[1:]})
+        print(f"{B}{len(urls)} URLs archivées{RST}\n")
+        for u in urls[:50]: print(f"  {DIM}▸ {RST}{u}")
+        save_report("WAYBACK DEEP", "\n".join(urls[:100]))
+    except Exception as e:
+        print(f"{R}[!] {e}{RST}")
+
+def t_dorks():
+    banner_title("GOOGLE DORKS POUR LA CIBLE")
+    d = TARGET["domain"]
+    dorks = [
+        ("Documents exposés", f"site:{d} filetype:(pdf|doc|xls|csv|txt)"),
+        ("Bases SQL", f"site:{d} ext:sql"),
+        ("Backups", f"site:{d} (bak|old|backup|~)"),
+        ("Confi files", f"site:{d} (env|config|ini|conf)"),
+        ("Logins", f"site:{d} (login|signin|panel|admin)"),
+        ("Pages d'erreur", f"site:{d} (warning|error|fatal)"),
+        ("Emails", f'site:{d} intext:"@{d}"'),
+        ("Répertoires ouverts", f'intitle:"index of" site:{d}'),
+        ("Cloud keys", f'site:{d} "api_key"'),
+        ("Wayback admin", f"site:web.archive.org {d} admin"),
+    ]
+    for name, q in dorks:
+        url = "https://www.google.com/search?q=" + urllib.parse.quote(q)
+        print(f"  {G}▸ {name:<24}{RST} {CY}{url}{RST}")
+    save_report("DORKS", "\n".join(f"{n}: {u}" for n, u in dorks))
+
+def t_headers_subs():
+    banner_title("HEADERS DE SÉCURITÉ PAR SOUS-DOMAINE")
+    subs = get_subs()[:12]
+    sec = ["Strict-Transport-Security", "Content-Security-Policy", "X-Frame-Options", "X-Content-Type-Options"]
+    for s in subs:
+        try:
+            req = urllib.request.Request(f"https://{s}", headers={"User-Agent": UA})
+            with urllib.request.urlopen(req, timeout=6) as r:
+                have = [h for h in sec if r.headers.get(h)]
+                missing = [h for h in sec if h not in have]
+            col = G if len(missing) <= 1 else R if len(missing) >= 3 else Y
+            print(f"  {col}{s:<40}{RST} {G}{'✅'*len(have)}{R}{'❌'*len(missing)}{RST}")
+        except Exception:
+            print(f"  {DIM}{s:<40} injoignable{RST}")
+
+def t_stack_subs():
+    banner_title("STACK TECH PAR SOUS-DOMAINE")
+    subs = get_subs()[:12]
+    for s in subs:
+        try:
+            req = urllib.request.Request(f"https://{s}", headers={"User-Agent": UA})
+            with urllib.request.urlopen(req, timeout=6) as r:
+                h = dict(r.headers); body = r.read(5000).decode("utf-8", "ignore")
+            stack = []
+            if "server" in h: stack.append(h["server"][:30])
+            if "x-powered-by" in h: stack.append(h["x-powered-by"][:30])
+            for pat, name in ((r"wp-content", "WP"), (r"shopify", "Shopify"), (r"__next", "Next.js"),
+                              (r"react", "React"), (r"vue", "Vue"), (r"laravel", "Laravel")):
+                if re.search(pat, body, re.I): stack.append(name)
+            print(f"  {C}{s:<40}{RST} {DIM}{', '.join(stack) or '—'}{RST}")
+        except Exception:
+            print(f"  {DIM}{s:<40} injoignable{RST}")
+
+def t_meta():
+    banner_title("MÉTADONNÉES DU SITE")
+    base = f"https://{TARGET['domain']}"
+    try:
+        home = http_get(base, timeout=12)
+    except Exception as e:
+        print(f"{R}[!] {e}{RST}"); return
+    for pat, label in ((r'<meta[^>]*name=["\']description["\'][^>]*content=["\']([^"\']*)', "Description"),
+                       (r'<meta[^>]*name=["\']keywords["\'][^>]*content=["\']([^"\']*)', "Keywords"),
+                       (r'<meta[^>]*property=["\']og:site_name["\'][^>]*content=["\']([^"\']*)', "Site name"),
+                       (r'<meta[^>]*name=["\']generator["\'][^>]*content=["\']([^"\']*)', "Generator"),
+                       (r'<title>([^<]*)</title>', "Titre")):
+        m = re.search(pat, home, re.I)
+        if m and m.group(1): print(f"  {G}{label:<14}{RST} {W}{m.group(1)[:120]}{RST}")
+    emails = sorted(set(re.findall(r"[\w.+-]+@[\w-]+\.[\w.-]{2,12}", home)))
+    phones = sorted(set(re.findall(r"(?:\+33|0)[1-9](?:[\s.-]?\d{2}){4}", home)))
+    if emails: print(f"\n  {B}emails :{RST} {', '.join(emails[:8])}")
+    if phones: print(f"  {B}téléphones :{RST} {', '.join(phones[:6])}")
+    save_report("META", f"emails: {emails} · phones: {phones}")
+
+def t_crawl():
+    banner_title("MINI-CRAWLER (1 niveau depuis l'accueil)")
+    base = f"https://{TARGET['domain']}"
+    try:
+        home = http_get(base, timeout=12)
+    except Exception as e:
+        print(f"{R}[!] {e}{RST}"); return
+    links = sorted({urllib.parse.urljoin(base, l) for l in re.findall(r'href=["\']([^"\']+)', home)
+                    if urllib.parse.urljoin(base, l).startswith(base)})
+    print(f"{B}{len(links)} liens internes :{RST}")
+    forms_total = 0
+    for u in links[:15]:
+        try:
+            page = http_get(u, timeout=8)
+            n_forms = len(re.findall(r"<form", page, re.I))
+            n_logins = len(re.findall(r"type=[\"']?password", page, re.I))
+            marker = f" {R}← FORMULAIRE{RST}" if n_forms else ""
+            marker += f" {R}← LOGIN{RST}" if n_logins else ""
+            print(f"  {DIM}▸ {RST}{u[:90]}{marker}")
+            forms_total += n_forms
+        except Exception: continue
+    print(f"\n{DIM}{forms_total} formulaires au total{RST}")
+    save_report("CRAWL", "\n".join(links[:40]))
+
+def t_honeypot():
+    banner_title("DÉTECTION DE HONEYPOT (heuristique)")
+    ip = TARGET.get("domain")
+    try: ip = socket.gethostbyname(TARGET["domain"]) if TARGET["domain"] else ""
+    except Exception: ip = ""
+    if not ip: print(f"{Y}[!] domaine requis{RST}"); return
+    score = 0
+    open_ports = 0
+    def chk(p):
+        try:
+            with socket.create_connection((ip, p), timeout=1): return 1
+        except Exception: return 0
+    all_ports = [21,22,23,25,53,80,110,135,139,143,443,445,993,1433,3306,3389,5432,5900,6379,8080,8443,9200,27017,6443,11211]
+    with ThreadPoolExecutor(25) as ex:
+        open_ports = sum(ex.map(chk, all_ports))
+    print(f"  ports ouverts sur 25 testés : {open_ports}")
+    if open_ports > 15: score += 3; print(f"  {R}→ BEAUCOUP trop de ports ouverts (signature honeypot){RST}")
+    for p in all_ports[:5]:
+        try:
+            with socket.create_connection((ip, p), timeout=1.5) as s:
+                s.settimeout(1.5)
+                if p == 80: s.send(b"GET /\r\n\r\n")
+                b = s.recv(100)
+        except Exception: continue
+    print(f"  {DIM}score honeypot : {score}/3{' — probable honeypot' if score >= 2 else ' — probablement légitime'}{RST}")
+
+def t_report():
+    banner_title("RÉSUMÉ DES RAPPORTS HUNT")
+    path = os.path.join(RAPPORTS, f"hunt_{TARGET['domain'].replace('.', '_')}.txt") if TARGET["domain"] else None
+    print(CY + open(path).read()[-2500:] if path and os.path.exists(path) else f"{Y}aucun rapport{RST}")
+
+
+def t_xss_marker():
+    banner_title("XSS RÉFLÉCHI (marqueur bénin — jamais de script réel)")
+    base = f"https://{TARGET['domain']}"
+    marker = "dcmarker123"
+    params = ["q", "search", "s", "query", "keyword", "name", "id", "page"]
+    for p in params:
+        try:
+            req = urllib.request.Request(f"{base}/?{p}={marker}", headers={"User-Agent": UA})
+            with urllib.request.urlopen(req, timeout=8) as r:
+                body = r.read().decode("utf-8", "ignore")
+            if marker in body:
+                print(f"  {Y}param '{p}' reflète la valeur — {R}testable manuellement dans le scope du programme{RST}")
+        except Exception: continue
+    print(f"{DIM}marqueur bénin uniquement — le PoC réel se fait manuellement{RST}")
+
+def t_csp_audit():
+    banner_title("AUDIT CSP DÉTAILLÉ")
+    base = f"https://{TARGET['domain']}"
+    try:
+        req = urllib.request.Request(base, headers={"User-Agent": UA})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            csp = r.headers.get("Content-Security-Policy", "")
+    except Exception as e:
+        print(f"{R}[!] {e}{RST}"); return
+    if not csp: print(f"{R}❌ aucune CSP{RST}"); return
+    print(f"{W}{csp[:400]}{RST}\n")
+    for directive, risk in (("unsafe-inline", "inline autorisé → XSS possible"),
+                            ("unsafe-eval", "eval autorisé"),
+                            ("*", "wildcard total")):
+        if directive in csp:
+            print(f"  {R}⚠️ '{directive}' présent — {risk}{RST}")
+    for d_ in ("default-src", "script-src", "object-src", "base-uri", "frame-ancestors"):
+        if d_ not in csp: print(f"  {Y}directive '{d_}' absente{RST}")
+
+def t_sourcemaps():
+    banner_title("SOURCE MAPS EXPOSÉES (artefacts de dev)")
+    base = f"https://{TARGET['domain']}"
+    try:
+        home = http_get(base, timeout=12)
+    except Exception as e:
+        print(f"{R}[!] {e}{RST}"); return
+    js_urls = set(re.findall(r'src=["\']([^"\']+\.js[^"\']*)["\']', home))
+    js_urls = {u if u.startswith("http") else urllib.parse.urljoin(base, u) for u in js_urls}
+    n = 0
+    for u in list(js_urls)[:12]:
+        try:
+            js = http_get(u, timeout=8)
+            m = re.search(r'sourceMappingURL=([^\s]+\.map)', js)
+            if m:
+                map_url = urllib.parse.urljoin(u, m.group(1))
+                try:
+                    http_get(map_url, timeout=8)
+                    print(f"  {B}{R}🗺️ SOURCE MAP EXPOSÉE{RST}\n     {CY}{map_url[:100]}{RST}")
+                    n += 1
+                except Exception: pass
+        except Exception: continue
+    if not n: print(f"{G}aucune source map exposée{RST}")
+
+
 TOOLS = [
     ("1", "SUBDOMAIN TAKEOVER", t_takeover, "CNAMEs orphelins sur les 15 services connus"),
     ("2", "SECRETS DANS LES JS", t_secrets, "clés API oubliées : AWS, Google, Stripe, JWT…"),
@@ -266,6 +526,20 @@ TOOLS = [
     ("4", "PARAMÈTRES & FORMS", t_params, "formulaires et params cachés du site"),
     ("5", "WAYBACK HISTORIQUE", t_wayback, "URLs archivées : backups, admin, api…"),
     ("6", "MÉMO BOUNTY", t_scope, "règles d'or et plateformes"),
+    ("a", "DIRECTORY BRUTE", t_dirbrute, "wordlist SecLists (GitHub)"),
+    ("b", "OPEN REDIRECT", t_redirect, "15 params de redirection testés"),
+    ("c", "SOUS-DOMAINES → IP", t_resolve, "infra et hébergeurs des subs"),
+    ("d", "WAYBACK PROFOND", t_archive_deep, "400 URLs archivées du domaine"),
+    ("e", "GOOGLE DORKS", t_dorks, "10 dorks prêts pour la cible"),
+    ("f", "HEADERS PAR SUB", t_headers_subs, "audit de sécurité par sous-domaine"),
+    ("g", "STACK PAR SUB", t_stack_subs, "technos de chaque sous-domaine"),
+    ("h", "MÉTADONNÉES", t_meta, "desc, keywords, emails, téléphones"),
+    ("i", "MINI-CRAWLER", t_crawl, "1 niveau de liens + formulaires"),
+    ("j", "DÉTECTEUR HONEYPOT", t_honeypot, "heuristique : 25 ports testés"),
+    ("k", "RÉSUMÉ RAPPORTS", t_report, "relit tous tes scans hunt"),
+    ("l", "XSS MARQUEUR", t_xss_marker, "params qui reflètent (marqueur bénin)"),
+    ("m", "AUDIT CSP", t_csp_audit, "directives manquantes / unsafe"),
+    ("n", "SOURCE MAPS", t_sourcemaps, "artefacts de dev exposés"),
 ]
 
 def menu():

@@ -17,7 +17,7 @@ RESSOURCES = {
     "dirs-big.txt": "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/raft-large-directories.txt",
     "params.txt": "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/burp-parameter-names.txt",
     "usernames-top.txt": "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Usernames/Names/names.txt",
-    "passwords-common.txt": "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10-million-password-list-top-100000.txt",
+    "passwords-common.txt": "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/Pwdb_top-1000000.txt",
     # la base de sherlock-project : 400+ plateformes d'OSINT
     "sherlock.json": "https://raw.githubusercontent.com/sherlock-project/sherlock/master/sherlock_project/resources/data.json",
 }

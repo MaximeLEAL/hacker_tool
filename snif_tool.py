@@ -179,6 +179,162 @@ def t_dnsconf():
     print(f"{B}domaines de recherche :{RST} {', '.join(domains)}")
     save_report("DNS", f"servers: {servers}")
 
+
+def t_lan_ports():
+    banner_title("SCAN DE PORTS SUR LES HÔTES DU LAN")
+    me, base = _base_ip()
+    if not me: print(f"{R}[!] pas d'IP{RST}"); return
+    with threading.ThreadPoolExecutor(64) as ex:
+        alive = [x for x in ex.map(_pingable, [f"{base}.{i}" for i in range(1, 255) if f"{base}.{i}" != me]) if x]
+    print(f"{DIM}{len(alive)} hôtes vivants{RST}")
+    top = [21, 22, 80, 443, 445, 3306, 3389, 8080, 8443, 9000]
+    for h in alive:
+        open_p = []
+        for p in top:
+            try:
+                with socket.create_connection((h, p), timeout=1): open_p.append(p)
+            except Exception: continue
+        print(f"  {C}{h:<16}{RST} {G}{', '.join(map(str, open_p)) or '—'}{RST}")
+    save_report("LAN PORTS", f"{alive}")
+
+def t_process_conns():
+    banner_title("CONNEXIONS PAR PROCESS (qui parle le plus)")
+    out = subprocess.run(["lsof", "-i", "-n", "-P"], capture_output=True, text=True).stdout
+    procs = {}
+    for line in out.splitlines()[1:]:
+        p = line.split()[0]
+        procs[p] = procs.get(p, 0) + 1
+    for p, n in sorted(procs.items(), key=lambda x: -x[1])[:15]:
+        print(f"  {C}{p:<20}{RST} {n} connexion(s)")
+
+def t_firewall():
+    banner_title("STATUT DU FIREWALL macOS")
+    fw = "/usr/libexec/ApplicationFirewall/socketfilterfw"
+    for flag, label in (("--getglobalstate", "état global"),
+                        ("--getblockall", "bloque tout"),
+                        ("--getallowsigned", "apps signées autorisées"),
+                        ("--getstealthmode", "mode furtif")):
+        out = subprocess.run([fw, flag], capture_output=True, text=True).stdout.strip()
+        col = G if "activated" in out.lower() or "enabled" in out.lower() else Y
+        print(f"  {col}{label:<26}{RST} {out.replace('( ', '').replace(')', '')}")
+
+def t_arpwatch():
+    banner_title("ARP WATCH (diff des MAC toutes les 5 s — Ctrl+C pour stopper)")
+    prev = set(); first = True
+    try:
+        while True:
+            out = subprocess.run(["arp", "-a"], capture_output=True, text=True).stdout
+            macs = set(re.findall(r"at\s+([\w:]+)", out))
+            if first: print(f"{DIM}baseline : {len(macs)} appareils{RST}"); prev = macs; first = False
+            new = macs - prev
+            for m in new: print(f"  {R}▸ NOUVELLE MAC{RST} {m}")
+            for m in prev - macs: print(f"  {DIM}▸ MAC disparue : {m}{RST}")
+            prev = macs; time.sleep(5)
+    except KeyboardInterrupt:
+        print(f"{G}fin du watch{RST}")
+
+def t_bandwidth():
+    banner_title("DÉBIT — compteurs d'interface (échantillon 5 s)")
+    itf = "en0"
+    def counters():
+        out = subprocess.run(["netstat", "-I", itf, "-b"], capture_output=True, text=True).stdout
+        line = out.splitlines()[1].split()
+        return int(line[6]), int(line[9])
+    rx0, tx0 = counters(); t0 = time.time(); time.sleep(5)
+    rx1, tx1 = counters()
+    dt = time.time() - t0
+    print(f"  {G}réception{RST} {max(0,(rx1-rx0))/dt/1024:.0f} Ko/s")
+    print(f"  {G}envoi{RST}     {max(0,(tx1-tx0))/dt/1024:.0f} Ko/s")
+
+def t_traceroute_lan():
+    banner_title("TRACEROUTE LOCAL")
+    me, base = _base_ip()
+    router = subprocess.run(["netstat", "-rn"], capture_output=True, text=True).stdout
+    m = re.search(r"^default\s+([\d.]+)", router, re.M)
+    if m:
+        out = subprocess.run(["traceroute", "-w", "1", "-q", "1", "-m", "5", m.group(1)],
+                             capture_output=True, text=True).stdout
+        for l in out.splitlines(): print(f"  {C}{l}{RST}")
+
+def t_pingmon():
+    banner_title("PING MONITOR — latence vers une destination (Ctrl+C pour stopper)")
+    host = input(f"{B}{C}destination [1.1.1.1]{RST} > ").strip() or "1.1.1.1"
+    print(f"{DIM}latences en direct :{RST}")
+    try:
+        subprocess.run(["ping", host])
+    except KeyboardInterrupt:
+        print(f"{G}fin{RST}")
+
+def t_wifi_near():
+    banner_title("RÉSEAUX WIFI AUTOUR (system_profiler — lent ~20 s)")
+    out = subprocess.run(["system_profiler", "SPAirPortDataType"], capture_output=True, text=True).stdout
+    nets = re.findall(r"(\S.*?):\n\s+PHY Mode: (\S+)", out)
+    seen = set()
+    for name, phy in nets[:30]:
+        if name in seen: continue
+        seen.add(name)
+        print(f"  {C}{name[:44]:<44}{RST} {G}{phy}{RST}")
+    if not nets: print(f"{Y}aucun réseau listé{RST}")
+    save_report("WIFI NEAR", ", ".join(f"{n} ({p})" for n, p in nets[:20]))
+
+def t_dns_test():
+    banner_title("TEST DNS — résolveur local vs 1.1.1.1 (détection de hijack)")
+    domains = ["google.com", "facebook.com", "amazon.com", "apple.com"]
+    for d in domains:
+        local = subprocess.run(["dig", "+short", d], capture_output=True, text=True).stdout.strip()
+        cloud = subprocess.run(["dig", "+short", d, "@1.1.1.1"], capture_output=True, text=True).stdout.strip()
+        same = local.split()[0] == cloud.split()[0] if local and cloud else True
+        print(f"  {C}{d:<16}{RST} local: {local.split()[0] if local else '—':<16} 1.1.1.1: {cloud.split()[0] if cloud else '—'} {'✅' if same else R + '⚠️ DIFFÉRENT' + RST}")
+
+def t_interfaces():
+    banner_title("INTERFACES RÉSEAU (ifconfig)")
+    out = subprocess.run(["ifconfig"], capture_output=True, text=True).stdout
+    blocks = out.split("\n\n")
+    for b in blocks:
+        name = b.split(":")[0] if ":" in b else ""
+        if "inet " in b and "127.0.0.1" not in b:
+            ip = re.search(r"inet (\d+\.\d+\.\d+\.\d+)", b)
+            mac = re.search(r"ether (\S+)", b)
+            print(f"  {B}{C}{name:<8}{RST} {W}{ip.group(1) if ip else '—':<16}{RST} {DIM}MAC {mac.group(1) if mac else '—'}{RST}")
+
+def t_risk_ports():
+    banner_title("PORTS OUVERTS À RISQUE")
+    out = subprocess.run(["lsof", "-iTCP", "-sTCP:LISTEN", "-n", "-P"], capture_output=True, text=True).stdout
+    risky = {23: "telnet — en clair", 445: "SMB — worms le ciblent", 3389: "RDP",
+             5900: "VNC", 6379: "Redis — souvent sans auth", 27017: "MongoDB",
+             11211: "Memcached", 1433: "MSSQL", 1883: "MQTT sans TLS"}
+    found = 0
+    for line in out.splitlines()[1:]:
+        m = re.search(r":(\d+)\s+\(LISTEN\)", line)
+        if m and int(m.group(1)) in risky:
+            print(f"  {R}{m.group(1):<6}{RST} {Y}{risky[int(m.group(1))]}{RST}  {DIM}{line.split()[0]}{RST}")
+            found += 1
+    if not found: print(f"{G}✅ aucun port à risque exposé{RST}")
+
+def t_geo_conns():
+    banner_title("GÉOLOCALISATION DES CONNEXIONS SORTANTES")
+    out = subprocess.run(["lsof", "-i", "-n", "-P"], capture_output=True, text=True).stdout
+    ips = set()
+    for line in out.splitlines()[1:]:
+        m = re.search(r"->(\d+\.\d+\.\d+\.\d+)", line)
+        if m and not m.group(1).startswith(("192.168.", "10.", "127.", "172.")):
+            ips.add(m.group(1))
+    print(f"{DIM}{len(ips)} IP(s) distante(s){RST}")
+    import urllib.request as ur
+    for ip in sorted(ips)[:12]:
+        try:
+            req = ur.Request(f"http://ip-api.com/json/{ip}?fields=country,city,isp", headers={"User-Agent": UA_})
+            with ur.urlopen(req, timeout=6) as r:
+                j = json.loads(r.read())
+            print(f"  {G}{ip:<16}{RST} {W}{j.get('country','?'):<12}{RST} {DIM}{j.get('city','')}{RST} · {j.get('isp','')[:30]}")
+        except Exception: continue
+
+def t_snapshot():
+    banner_title("SNAPSHOT COMPLET — tout en un rapport")
+    for fn in (t_listening, t_arp, t_sessions, t_interfaces, t_dnsconf, t_firewall, t_risk_ports):
+        try: fn()
+        except Exception as e: print(f"{DIM}[{fn.__name__}: {e}]{RST}")
+
 TOOLS = [
     ("1", "CONNEXIONS LIVE", t_connections, "nouvelles connexions sortantes en temps réel"),
     ("2", "TABLE ARP", t_arp, "les voisins du réseau avec leurs MAC"),
@@ -187,6 +343,19 @@ TOOLS = [
     ("5", "SESSIONS", t_sessions, "who + 10 dernières sessions"),
     ("6", "INFOS WIFI", t_wifi, "SSID, sécurité, configuration"),
     ("7", "CONFIG DNS", t_dnsconf, "résolveurs utilisés, domaines de recherche"),
+    ("a", "PORTS DU LAN", t_lan_ports, "scan des top ports sur chaque hôte du wifi"),
+    ("b", "CONNEXIONS/PROCESS", t_process_conns, "quelles apps parlent le plus"),
+    ("c", "FIREWALL macOS", t_firewall, "global · furtif · apps signées"),
+    ("d", "ARP WATCH", t_arpwatch, "nouvelles/disparues MAC en live"),
+    ("e", "DÉBIT LIVE", t_bandwidth, "réception/envoi en Ko/s"),
+    ("f", "TRACEROUTE LAN", t_traceroute_lan, "le chemin jusqu'au routeur"),
+    ("g", "PING MONITOR", t_pingmon, "latence en continu"),
+    ("h", "WIFI AUTOUR", t_wifi_near, "les réseaux voisins + sécurité"),
+    ("i", "TEST DNS HIJACK", t_dns_test, "résolveur local vs 1.1.1.1"),
+    ("j", "INTERFACES", t_interfaces, "IP et MAC de chaque interface"),
+    ("k", "PORTS À RISQUE", t_risk_ports, "les exposés classiquement dangereux"),
+    ("l", "GÉO CONNEXIONS", t_geo_conns, "pays des IP distantes"),
+    ("m", "SNAPSHOT COMPLET", t_snapshot, "tout le dossier en un rapport"),
 ]
 
 def menu():
