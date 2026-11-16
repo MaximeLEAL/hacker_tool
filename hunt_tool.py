@@ -459,6 +459,12 @@ def t_report():
     path = os.path.join(RAPPORTS, f"hunt_{TARGET['domain'].replace('.', '_')}.txt") if TARGET["domain"] else None
     print(CY + open(path).read()[-2500:] if path and os.path.exists(path) else f"{Y}aucun rapport{RST}")
 
+def t_html():
+    if not TARGET["domain"]: print(f"{Y}[!] cible requise{RST}"); return
+    src = os.path.join(RAPPORTS, f"hunt_{TARGET['domain'].replace('.', '_')}.txt")
+    out = gt_lib.html_report(src, f"HUNT — {TARGET['domain']}", src.replace(".txt", ".html"), accent="#f5c518")
+    print(f"{G}✓ rapport HTML : {out}{RST}" if out else f"{Y}aucun rapport{RST}")
+
 
 def t_xss_marker():
     banner_title("XSS RÉFLÉCHI (marqueur bénin — jamais de script réel)")
@@ -558,6 +564,7 @@ def menu():
     for n, name, _, desc in TOOLS:
         print(f"  {B}{C}{n}{RST}  {W}{name:<26}{RST} {DIM}{desc}{RST}")
     print(f"  {B}{C}c{RST}  {'CHANGER / DÉFINIR LA CIBLE':<26}{RST}")
+    print(f"  {B}{H}{RST}  {'RAPPORT HTML → .html':<26}{RST}")
     print(f"  {B}{C}q{RST}  {'QUITTER':<26}{RST}")
     print()
 

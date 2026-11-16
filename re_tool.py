@@ -6,6 +6,8 @@
 # ═══════════════════════════════════════════════════════════════════
 #  Analyse STATIQUE uniquement — radare2 embarque. Rien n'est exécuté.
 import os, sys, subprocess, re, json, time, random, shutil, hashlib, math
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gt_lib
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 RAPPORTS = os.path.join(ROOT, "rapports")
@@ -384,6 +386,7 @@ def menu():
     for n, name, _, desc in TOOLS:
         print(f"  {B}{C}{n}{RST}  {W}{name:<26}{RST} {DIM}{desc}{RST}")
     print(f"  {B}{C}r{RST}  {'VOIR LE RAPPORT':<26}{RST}")
+    print(f"  {B}{H}{RST}  {'RAPPORT HTML → .html':<26}{RST}")
     print(f"  {B}{C}q{RST}  {'QUITTER':<26}{RST}")
     print()
 
@@ -391,6 +394,12 @@ def show_report():
     p = SAMPLE["path"] or "session"
     path = os.path.join(RAPPORTS, f"re_{os.path.basename(p)}.txt")
     print(CY + open(path).read()[-3000:] if os.path.exists(path) else f"{Y}aucun rapport{RST}")
+
+def t_html():
+    p = SAMPLE["path"] or "session"
+    src = os.path.join(RAPPORTS, f"re_{os.path.basename(p)}.txt")
+    out = gt_lib.html_report(src, f"RE — {os.path.basename(p)}", src.replace(".txt", ".html"), accent="#ff3ea5")
+    print(f"{G}✓ rapport HTML : {out}{RST}" if out else f"{Y}aucun rapport à convertir{RST}")
 
 def main():
     splash()

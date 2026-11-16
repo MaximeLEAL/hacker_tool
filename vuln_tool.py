@@ -6,6 +6,8 @@
 # ═══════════════════════════════════════════════════════════════════
 #  Usage : python3 vuln_tool.py
 import os, sys, subprocess, re, json, time, random, socket, shutil, urllib.request, urllib.parse
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gt_lib
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 RAPPORTS = os.path.join(ROOT, "rapports")
@@ -82,9 +84,7 @@ def splash():
 
 # ─────────────────────────── HELPERS ───────────────────────────
 def http_get(url, timeout=20):
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.loads(r.read())
+    return gt_lib.http_get(url, timeout=timeout, as_json=True, retries=4)
 
 def save_report(name, content):
     t = TARGET["domain"] or TARGET["ip"]
@@ -537,6 +537,7 @@ def menu():
         print(f"  {B}{C}{n}{RST}  {W}{name:<24}{RST} {DIM}{desc}{RST}")
     print(f"  {B}{C}c{RST}  {'CHANGER / DÉFINIR LA CIBLE':<24}{RST}")
     print(f"  {B}{C}r{RST}  {'VOIR LE RAPPORT':<24}{RST}")
+    print(f"  {B}{H}{RST}  {'RAPPORT HTML → .html':<24}{RST}")
     print(f"  {B}{C}q{RST}  {'QUITTER':<24}{RST}")
     print()
 
@@ -544,6 +545,13 @@ def show_report():
     t = TARGET["domain"] or TARGET["ip"]
     path = os.path.join(RAPPORTS, f"vuln_{t.replace('.', '_')}.txt") if t else None
     print(CY + open(path).read()[-3000:] if path and os.path.exists(path) else f"{Y}aucun rapport{RST}")
+
+def t_html():
+    t = TARGET["domain"] or TARGET["ip"]
+    if not t: print(f"{Y}[!] cible requise{RST}"); return
+    src = os.path.join(RAPPORTS, f"vuln_{t.replace('.', '_')}.txt")
+    out = gt_lib.html_report(src, f"VULN — {t}", src.replace(".txt", ".html"), accent="#ff2a2a")
+    print(f"{G}✓ rapport HTML : {out}{RST}")
 
 def main():
     splash()

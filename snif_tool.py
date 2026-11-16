@@ -5,6 +5,8 @@
 #  powered by Maxime Leal
 # ═══════════════════════════════════════════════════════════════════
 import os, sys, subprocess, re, time, random, shutil, socket, threading
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gt_lib
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 RAPPORTS = os.path.join(ROOT, "rapports")
@@ -370,12 +372,17 @@ def menu():
     for n, name, _, desc in TOOLS:
         print(f"  {B}{C}{n}{RST}  {W}{name:<26}{RST} {DIM}{desc}{RST}")
     print(f"  {B}{C}r{RST}  {'VOIR LE RAPPORT':<26}{RST}")
+    print(f"  {B}{H}{RST}  {'RAPPORT HTML → .html':<26}{RST}")
     print(f"  {B}{C}q{RST}  {'QUITTER':<26}{RST}")
     print()
 
 def show_report():
     p = os.path.join(RAPPORTS, "netsniff.txt")
     print(CY + open(p).read()[-2000:] if os.path.exists(p) else f"{Y}aucun rapport{RST}")
+
+def t_html():
+    out = gt_lib.html_report(os.path.join(RAPPORTS, "netsniff.txt"), "NET SNIFF", os.path.join(RAPPORTS, "netsniff.html"), accent="#e8e8e8")
+    print(f"{G}✓ rapport HTML : {out}{RST}" if out else f"{Y}aucun rapport à convertir{RST}")
 
 def main():
     splash()

@@ -90,10 +90,7 @@ def banner_title(txt):
     print(f"{DIM}cible : {W}{TARGET['domain'] or TARGET['ip']}{RST}\n")
 
 def http_get(url, timeout=10, as_json=False):
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        data = r.read()
-    return json.loads(data) if as_json else data.decode("utf-8", "ignore")
+    return gt_lib.http_get(url, timeout=timeout, as_json=as_json)
 
 def save_report(name, content):
     if not TARGET["domain"] and not TARGET["ip"]: return
@@ -614,6 +611,7 @@ def menu():
         print(f"  {B}{G}{n}{RST}  {W}{name:<24}{RST} {DIM}{desc}{RST}")
     print(f"  {B}{G}c{RST}  {'CHANGER / DÉFINIR LA CIBLE':<24}{RST}")
     print(f"  {B}{G}r{RST}  {'VOIR LE RAPPORT':<24}{RST}")
+    print(f"  {B}{H}{RST}  {'RAPPORT HTML → .html':<24}{RST}")
     print(f"  {B}{G}q{RST}  {'QUITTER':<24}{RST}")
     print()
 
@@ -624,6 +622,14 @@ def show_report():
         print(CY + open(path).read()[-3000:])
     else:
         print(f"{Y}aucun rapport pour cette cible{RST}")
+
+
+def t_html():
+    t = TARGET['domain'] or TARGET['ip']
+    if not t: print(f'{Y}[!] cible requise{RST}'); return
+    src = os.path.join(RAPPORTS, f"{t.replace('.', '_')}.txt")
+    out = gt_lib.html_report(src, "RECON — {t}", src.replace(".txt", ".html"), accent="#00ff46")
+    print(f"{G}✓ rapport HTML : {out}{RST}" if out else f"{Y}aucun rapport à convertir{RST}")
 
 def main():
     splash()

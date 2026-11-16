@@ -2,7 +2,7 @@
 # language: Python 3, file: gt_lib.py, target: macOS
 # GT_LIB — ressources GitHub partagées par tous les tools de hacker_tool
 # télécharge une fois, met en cache, sert ensuite hors-ligne
-import os, json, time, urllib.request
+import os, json, time, re, urllib.request
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(ROOT, "cache")
@@ -49,3 +49,84 @@ def sherlock_sites():
     if not s: return {}
     try: return json.loads(s)
     except Exception: return {}
+
+
+def http_get(url, timeout=15, retries=3, as_json=False):
+    """HTTP avec retry/backoff sur les rate limits (429/5xx) — pro behavior"""
+    import urllib.error
+    last = None
+    for i in range(retries):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": UA})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                d = r.read()
+            return json.loads(d) if as_json else d.decode("utf-8", "ignore")
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 502, 503, 500):
+                wait = 2 ** i * 2
+                time.sleep(wait); last = e; continue
+            raise
+        except Exception as e:
+            time.sleep(1); last = e
+    raise last
+
+def html_report(txt_path, title, out_path, accent="#e63022"):
+    """convertit un rapport .txt en rapport HTML professionnel style Gotham"""
+    import html as H
+    if not os.path.exists(txt_path): return None
+    content = open(txt_path, encoding="utf-8").read()
+    # découpe en sections par les séparateurs =====
+    parts = content.split("=" * 50)
+    sections = []
+    for p in parts:
+        p = p.strip()
+        if not p: continue
+        lines = p.splitlines()
+        header = ""
+        body = lines
+        m = re.match(r"^\[(\d{2}/\d{2}/\d{4} \d{2}:\d{2})\]\s*(.+)$", lines[0].strip())
+        if m:
+            header, body = lines[0].strip(), lines[1:]
+        elif lines[0].strip():
+            header = lines[0].strip()[:60]
+        body_txt = H.escape("\n".join(body).strip())[:6000]
+        if body_txt:
+            sections.append({"header": H.escape(header), "body": body_txt})
+    css = """:root{--bg:#06070c;--panel:#0c0e17;--panel2:#070810;--line:#1a1c2e;
+  --txt:#c4c6d6;--muted:#6a6d86;--red:#e63022;--gold:#f5c518;
+  --disp:"Anton",Impact,sans-serif;--mono:"JetBrains Mono",monospace;--sans:"Archivo",sans-serif}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--txt);font-family:var(--sans);padding:0}
+.nav{padding:16px 30px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.nav b{color:#fff;letter-spacing:3px}.nav b span{color:var(--red)}
+.nav .meta{font-family:var(--mono);color:var(--muted);font-size:.68rem;letter-spacing:1px}
+.hero{padding:44px 30px 26px;border-bottom:3px solid var(--accent)}
+h1{font-family:var(--disp);color:#fff;font-size:2.6rem;letter-spacing:2px;text-transform:uppercase;margin:0}
+h1 span{color:var(--accent)}
+.sub{font-family:var(--mono);color:var(--muted);font-size:.68rem;letter-spacing:3px;margin-top:10px;text-transform:uppercase}
+main{max-width:900px;margin:26px auto;padding:0 26px 50px}
+.sec{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:6px;margin-bottom:14px;overflow:hidden}
+.sech{display:flex;gap:12px;align-items:center;padding:11px 18px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:.68rem;letter-spacing:1px}
+.sech .nm{color:var(--accent);font-weight:700;text-transform:uppercase}
+.sech .dt{margin-left:auto;color:var(--dim)}
+.secb{padding:14px 18px;font-family:var(--mono);font-size:.76rem;line-height:1.55;white-space:pre-wrap;color:var(--txt);overflow-x:auto}
+footer{text-align:center;color:var(--muted);padding:34px;font-family:var(--mono);font-size:.62rem;letter-spacing:2px}
+footer a{color:#9fb4ff}
+"""
+    secs_html = "".join(
+        f'<div class="sec"><div class="sech"><span class="nm">{s["header"][:60]}</span></div>'
+        f'<div class="secb">{s["body"]}</div></div>'
+        for s in sections)
+    page = f"""<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<title>{H.escape(title)} — rapport</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=JetBrains+Mono&family=Archivo&display=swap" rel="stylesheet">
+<style>{css}</style></head><body>
+<div class="nav"><b>GOTHAM <span>CITY</span></b><span class="meta">RAPPORT GÉNÉRÉ LE {time.strftime('%d/%m/%Y %H:%M')}</span></div>
+<div class="hero" style="--accent:{accent}"><h1>{H.escape(title)} <span>· RAPPORT</span></h1>
+<div class="sub">ARSENAL DC · HACKER_TOOL · POWERED BY MAXIME LEAL</div></div>
+<main>{secs_html or '<p style="color:var(--muted)">rapport vide</p>'}</main>
+<footer>RAPPORT HTML GÉNÉRÉ PAR HACKER_TOOL · <a href="https://github.com/MaximeLEAL/hacker_tool">GITHUB</a> · POWERED BY MAXIME LEAL</footer>
+</body></html>"""
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(page)
+    return out_path

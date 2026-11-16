@@ -560,12 +560,17 @@ def menu():
     for n, name, _, desc in TOOLS:
         print(f"  {B}{V}{n}{RST}  {W}{name:<26}{RST} {DIM}{desc}{RST}")
     print(f"  {B}{V}r{RST}  {'VOIR LE RAPPORT':<26}{RST}")
+    print(f"  {B}{H}{RST}  {'RAPPORT HTML → .html':<26}{RST}")
     print(f"  {B}{V}q{RST}  {'QUITTER':<26}{RST}")
     print()
 
 def show_report():
     p = os.path.join(RAPPORTS, "hash_tool.txt")
     print(CY + open(p).read()[-2000:] if os.path.exists(p) else f"{Y}aucun rapport{RST}")
+
+def t_html():
+    out = gt_lib.html_report(os.path.join(RAPPORTS, "hash_tool.txt"), "HASH TOOL", os.path.join(RAPPORTS, "hash_tool.html"), accent="#9b30ff")
+    print(f"{G}✓ rapport HTML : {out}{RST}" if out else f"{Y}aucun rapport à convertir{RST}")
 
 def main():
     splash()

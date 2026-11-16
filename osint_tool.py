@@ -75,10 +75,7 @@ def banner_title(txt):
     print(f"\n{B}{C}══════ {txt} ══════{RST}\n")
 
 def http_get(url, timeout=12, as_json=False):
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        data = r.read()
-    return json.loads(data) if as_json else data.decode("utf-8", "ignore")
+    return gt_lib.http_get(url, timeout=timeout, as_json=as_json)
 
 def save_report(name, content):
     t = TARGET["domain"] or TARGET["username"]
@@ -498,6 +495,13 @@ def t_report_osint():
     path = os.path.join(RAPPORTS, f"osint_{t.replace('.', '_').replace('/', '_')}.txt") if t else None
     print(CY + open(path).read()[-2500:] if path and os.path.exists(path) else f"{Y}aucun rapport{RST}")
 
+def t_html():
+    t = TARGET["domain"] or TARGET["username"]
+    if not t: print(f"{Y}[!] contexte requis{RST}"); return
+    src = os.path.join(RAPPORTS, f"osint_{t.replace('.', '_').replace('/', '_')}.txt")
+    out = gt_lib.html_report(src, f"OSINT — {t}", src.replace(".txt", ".html"), accent="#00c8ff")
+    print(f"{G}✓ rapport HTML : {out}{RST}" if out else f"{Y}aucun rapport{RST}")
+
 
 def t_wayback_timeline():
     banner_title("TIMELINE D'ARCHIVAGE (par année)")
@@ -586,6 +590,7 @@ def menu():
         print(f"  {B}{C}{n}{RST}  {W}{name:<26}{RST} {DIM}{desc}{RST}")
     print(f"  {B}{C}d{RST}  {'DÉFINIR LE DOMAINE':<26}{RST}")
     print(f"  {B}{C}u{RST}  {'DÉFINIR UN USERNAME':<26}{RST}")
+    print(f"  {B}{H}{RST}  {'RAPPORT HTML → .html':<26}{RST}")
     print(f"  {B}{C}q{RST}  {'QUITTER':<26}{RST}")
     print()
 
