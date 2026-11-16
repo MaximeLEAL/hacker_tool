@@ -84,8 +84,8 @@ def splash():
     time.sleep(.8)
 
 # ─────────────────────────── HELPERS ───────────────────────────
-def http_get(url, timeout=20):
-    return gt_lib.http_get(url, timeout=timeout, as_json=True, retries=4)
+def http_get(url, timeout=20, headers=None):
+    return gt_lib.http_get(url, timeout=timeout, as_json=True, retries=4, headers=headers)
 
 def save_report(name, content):
     t = TARGET["domain"] or TARGET["ip"]
@@ -498,6 +498,56 @@ def t_links():
         print(f"  {G}▸ {name:<22}{RST} {CY}{url}{RST}")
     save_report("LINKS", f"{t}")
 
+
+def t_shodan():
+    banner_title("SHODAN LOOKUP — ce que Shodan voit sur la cible")
+    keys = gt_lib.load_keys()
+    if not keys.get("shodan"):
+        print(f"{Y}🔑 aucune clé Shodan configurée{RST}")
+        print(f"  {W}1.{RST} crée un compte gratuit : https://account.shodan.io")
+        print(f"  {W}2.{RST} copie ta clé dans {DIM}{gt_lib.KEYS_FILE}{RST}")
+        return
+    d = TARGET["domain"] or TARGET["ip"]
+    if not d: print(f"{Y}[!] cible requise{RST}"); return
+    try:
+        data = gt_lib.http_get(f"https://api.shodan.io/shodan/host/{TARGET['ip']}?key={keys['shodan']}", timeout=15, as_json=True)
+        if data.get("error"): print(f"{R}{data['error']}{RST}"); return
+        print(f"  {G}IP{RST} {data.get('ip')} · {W}{data.get('org','')}{RST} · {DIM}{data.get('country_name','')}{RST}")
+        print(f"  {G}ports{RST} {', '.join(map(str, data.get('ports', [])))}")
+        for service in data.get("data", [])[:8]:
+            banner = (service.get("data") or "")[:80].replace(chr(10), " ")
+            print(f"  {CY}:{service.get('port')}{RST} {DIM}{service.get('product','')} {service.get('version','')}{RST}")
+            if banner: print(f"     {DIM}{banner}{RST}")
+        save_report("SHODAN", json.dumps({k: data.get(k) for k in ("ports", "org", "hostnames")}, ensure_ascii=False))
+    except Exception as e:
+        print(f"{R}[!] {e.__class__.__name__}{RST}")
+
+def t_vt_domain():
+    banner_title("VIRUSTOTAL — réputation du domaine/IP")
+    keys = gt_lib.load_keys()
+    if not keys.get("virustotal"):
+        print(f"{Y}🔑 aucune clé VirusTotal configurée{RST}")
+        print(f"  {W}1.{RST} compte gratuit : https://www.virustotal.com")
+        print(f"  {W}2.{RST} profil → API key → colle-la dans {DIM}{gt_lib.KEYS_FILE}{RST}")
+        return
+    d = TARGET["domain"]
+    if not d: print(f"{Y}[!] cible requise{RST}"); return
+    try:
+        data = gt_lib.http_get(f"https://www.virustotal.com/api/v3/domains/{d}",
+                               timeout=15, as_json=True,
+                               headers={"x-apikey": keys["virustotal"]})
+        attrs = data.get("data", {}).get("attributes", {})
+        stats = attrs.get("last_analysis_stats", {})
+        print(f"  {G}malveillant{RST} : {R}{stats.get('malicious', 0)}{RST}")
+        print(f"  {G}suspect{RST}     : {Y}{stats.get('suspicious', 0)}{RST}")
+        print(f"  {G}propre{RST}      : {G}{stats.get('harmless', 0)}{RST}")
+        print(f"  {G}réputation{RST}  : {attrs.get('reputation', '—')}")
+        cats = attrs.get("categories", {})
+        if cats: print(f"  {G}catégories{RST} : {', '.join(cats.values())[:80]}")
+        save_report("VIRUSTOTAL", json.dumps(stats))
+    except Exception as e:
+        print(f"{R}[!] {e.__class__.__name__}{RST}")
+
 TOOLS = [
     ("1", "RECHERCHE CVE", t_cve_search, "par mot-clé produit/techno"),
     ("2", "CISA KEV", t_kev, "failles activement exploitées (top 20 récentes)"),
@@ -519,6 +569,8 @@ TOOLS = [
     ("j", "RÉSUMÉ EXÉCUTIF", t_executive, "compile tous tes rapports de la cible"),
     ("k", "KEV DIFF", t_kev_diff, "les NOUVELLES failles depuis le dernier passage"),
     ("l", "LIENS UTILES", t_links, "shodan · censys · virustotal · wayback · urlscan"),
+    ("n", "SHODAN LOOKUP", t_shodan, "ports · bannières · CVEs — ta clé API gratuite"),
+    ("o", "VIRUSTOTAL DOMAINE", t_vt_domain, "réputation malveillant/suspect — ta clé API"),
 ]
 
 def menu():

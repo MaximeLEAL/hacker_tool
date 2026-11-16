@@ -53,13 +53,13 @@ def sherlock_sites():
     except Exception: return {}
 
 
-def http_get(url, timeout=15, retries=3, as_json=False):
+def http_get(url, timeout=15, retries=3, as_json=False, headers=None):
     """HTTP avec retry/backoff sur les rate limits (429/5xx) — pro behavior"""
     import urllib.error
     last = None
     for i in range(retries):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": UA})
+            req = urllib.request.Request(url, headers=headers or {"User-Agent": UA})
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 d = r.read()
             return json.loads(d) if as_json else d.decode("utf-8", "ignore")
@@ -166,3 +166,39 @@ def bigtext(text, color=""):
         for i in range(6):
             rows[i] += glyph[i] + " "
     return "\n".join(color + r + "\033[0m" for r in rows)
+
+
+KEYS_FILE = os.path.join(ROOT, "keys.json")
+KEYS_DEFAULT = {
+    "_instructions": "clés API GRATUITES à créer toi-même : liens dans le README",
+    "virustotal": "",   # https://www.virustotal.com → profil → API key (gratuit)
+    "shodan": "",       # https://account.shodan.io → API key (gratuit)
+    "urlscan": "",      # https://urlscan.io → user → API (gratuit)
+    "censys": "",       # https://search.censys.io → API (gratuit)
+}
+
+def load_keys():
+    """les clés API de l'utilisateur — vide = options non disponibles"""
+    try:
+        d = json.load(open(KEYS_FILE, encoding="utf-8"))
+        return {k: v for k, v in d.items() if v and not k.startswith("_")}
+    except Exception:
+        return {}
+
+def pwned_password(password):
+    """le mot de passe apparaît-il dans des fuites réelles ?
+    k-anonymity : seuls les 5 premiers chars du SHA-1 quittent la machine"""
+    import hashlib
+    sha1 = hashlib.sha1(password.encode()).hexdigest().upper()
+    prefix, suffix = sha1[:5], sha1[5:]
+    try:
+        req = urllib.request.Request(f"https://api.pwnedpasswords.com/range/{prefix}",
+                                     headers={"User-Agent": UA})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            for line in r.read().decode().splitlines():
+                parts = line.strip().split(":")
+                if parts[0] == suffix:
+                    return int(parts[1])
+    except Exception:
+        return -1
+    return 0

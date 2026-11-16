@@ -1,0 +1,13 @@
+{
+ "_instructions": "CLÉS API GRATUITES — crée les comptes, colle les clés, sauvegarde :",
+ "virustotal": "",
+ "shodan": "",
+ "urlscan": "",
+ "censys": "",
+ "_liens": {
+  "virustotal": "https://www.virustotal.com → profil → API key (gratuit, 4 req/min)",
+  "shodan": "https://account.shodan.io → API key (gratuit, résultats limités)",
+  "urlscan": "https://urlscan.io → user settings → API (gratuit)",
+  "censys": "https://search.censys.io → account → API (gratuit)"
+ }
+}

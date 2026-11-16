@@ -524,6 +524,33 @@ def t_double():
             return
     print(f"{R}pas trouvé{RST}")
 
+
+def t_pwned():
+    banner_title("BREACH CHECK — ton mot de passe est-il dans des fuites RÉELLES ?")
+    print(f"{DIM}k-anonymity : 5 chars du SHA-1 seulement quittent la machine — aucun risque{RST}")
+    pw = input(f"{B}{V}mot de passe à tester{RST} > ")
+    if not pw: return
+    import gt_lib
+    n = gt_lib.pwned_password(pw)
+    if n < 0:
+        print(f"{R}[!] API injoignable{RST}"); return
+    if n == 0:
+        print(f"\n  {G}✅ 0 occurrence{RST} — ce mot de passe n'apparaît dans AUCUNE fuite connue")
+        print(f"  {DIM}→ il reste fort S'IL est unique et long{RST}")
+    else:
+        col = R if n > 1000 else Y
+        print(f"\n  {col}⚠️ {n:,} occurrences{RST} — ce mot de passe est compromis, change-le partout")
+    # teste aussi la wordlist complète
+    print(f"\n{DIM}scan de ta wordlist intégrée…{RST}")
+    bad = 0
+    for w in WORDS:
+        m = gt_lib.pwned_password(w)
+        if m > 1000:
+            print(f"  {R}{w:<16}{RST} {m:,} occurrences")
+            bad += 1
+    print(f"{DIM}{bad} mot(s) de la wordlist fortement compromis{RST}")
+    save_report("BREACH", f"{pw[:2]}*** : {n:,} occurrences")
+
 TOOLS = []  # placeholder (remplacé plus bas)
 
 TOOLS = [
@@ -547,6 +574,7 @@ TOOLS = [
     ("j", "GÉNÉRATEUR SECURE", t_pwgen, "mdp fort + UUID v4"),
     ("k", "SALTED MD5", t_salted, "md5(salt+pass) / md5(pass+salt)"),
     ("l", "DOUBLE HASH", t_double, "md5(md5(pw)) · sha256(sha256(pw))"),
+    ("m", "BREACH CHECK", t_pwned, "52M+ fuites réelles via k-anonymity — SANS clé"),
 ]
 
 def menu():

@@ -348,6 +348,42 @@ def t_memo():
 {W}  izz{RST} strings bin     {W}is~sym{RST} symboles   {W}aaa{RST} analyse    {W}afl{RST} fonctions
 {W}  pdf @ f{RST} décompile     {W}pdc @ f{RST} pseudo   {W}px 512{RST} hexdump    {W}agf{RST} graphe""")
 
+
+def t_vt():
+    banner_title("VIRUSTOTAL — ton échantillon est-il connu ?")
+    if not need_sample(): return
+    keys = gt_lib.load_keys()
+    if not keys.get("virustotal"):
+        print(f"{Y}🔑 aucune clé VirusTotal{RST}")
+        print(f"  {W}1.{RST} compte gratuit : https://www.virustotal.com")
+        print(f"  {W}2.{RST} profil → API key → {DIM}{gt_lib.KEYS_FILE}{RST}")
+        return
+    data = open(SAMPLE["path"], "rb").read()
+    sha = hashlib.sha256(data).hexdigest()
+    import urllib.request as ur
+    req = ur.Request(f"https://www.virustotal.com/api/v3/files/{sha}",
+                     headers={"x-apikey": keys["virustotal"]})
+    try:
+        with ur.urlopen(req, timeout=15) as r:
+            d = json.loads(r.read())
+        attrs = d.get("data", {}).get("attributes", {})
+        stats = attrs.get("last_analysis_stats", {})
+        print(f"  {G}SHA-256{RST} {sha[:32]}…")
+        print(f"  {G}détections{RST} : {R}{stats.get('malicious', 0)}{RST} / {stats.get('suspicious', 0)} suspects / {G}{stats.get('harmless', 0)} propres")
+        names = attrs.get("meaningful_name", "")
+        if names: print(f"  {G}nom{RST} : {names}")
+        for engine, res in list(attrs.get("last_analysis_results", {}).items())[:8]:
+            if res.get("category") not in ("harmless", "undetected"):
+                print(f"  {R}{engine}{RST}: {res.get('result', '')}")
+        save_report("VIRUSTOTAL", f"{sha[:20]} → {stats}")
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            print(f"  {G}✅ inconnu de VirusTotal — jamais analysé{RST}")
+        else:
+            print(f"{R}[!] HTTP {e.code}{RST}")
+    except Exception as e:
+        print(f"{R}[!] {e}{RST}")
+
 TOOLS = [
     ("0", "CHARGER UN ÉCHANTILLON", t_load, "choisis le binaire/fichier à analyser"),
     ("1", "ANALYSE RAPIDE", t_analyze, "type, entropie, hashes, vue d'ensemble"),
@@ -369,6 +405,7 @@ TOOLS = [
     ("h", "CONSTANTES CRYPTO", t_cryptoconst, "AES S-box, PEM, ASN.1"),
     ("i", "RÉSUMÉ RE", t_summary, "analyse + packing + overlay en un coup"),
     ("x", "MÉMO R2", t_memo, "les commandes radare2 utiles"),
+    ("y", "VIRUSTOTAL HASH", t_vt, "ton échantillon est-il déjà connu ?"),
 ]
 
 def menu():
