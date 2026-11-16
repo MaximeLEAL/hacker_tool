@@ -98,6 +98,14 @@ Tous les tools partagent un système de **ressources publiques téléchargées e
 - **Sherlock** (sherlock-project) — la base de 482 plateformes d'OSINT
 - **SecureDrop** (freedom of the press) — l'annuaire officiel des signalements journalistiques
 
+## 🔑 KEYS.JSON — le boost par les services fermés (TES clés gratuites)
+
+Crée des comptes gratuits, colle tes clés dans `keys.json` — les tools gagnent des super-pouvoirs :
+- **VirusTotal** (https://www.virustotal.com) → RE tool : ton échantillon est-il connu ? + VULN : réputation de domaine
+- **Shodan** (https://account.shodan.io) → VULN tool : ports, bannières et CVEs Shodan sur une IP
+- **urlscan.io** / **Censys** (gratuits) → en attente d'intégration
+SANS CLÉ, ça marche déjà : le **BREACH CHECK** (k-anonymity, 52M+ fuites réelles) du HASH tool ne nécessite aucune clé.
+
 ## ⚖️ Usage
 
 Ces outils sont conçus pour **l'apprentissage, les CTFs et les audits autorisés**.
