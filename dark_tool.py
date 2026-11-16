@@ -5,6 +5,8 @@
 #  powered by Maxime Leal
 # ═══════════════════════════════════════════════════════════════════
 import os, sys, subprocess, re, json, time, random, shutil, urllib.request, urllib.error
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gt_lib
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 RAPPORTS = os.path.join(ROOT, "rapports")
