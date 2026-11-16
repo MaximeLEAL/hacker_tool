@@ -85,10 +85,11 @@ fonctions (aaa) · désassemblage (pdf) · pseudo-décompilation (pdc) · consol
 détection packing · **overlay PE** · strings+offsets (izz) · hexdump · diff binaires ·
 infos Mach-O · **constantes crypto** (AES S-box) · résumé · mémo r2
 
-## 🧅 DARK TOOL — opérations Tor (8 tools)
-1. STATUT TOR · 2. INSTALLER/DÉMARRER · 3. IP DE SORTIE TOR · 4. FETCH VIA TOR
-5. SECUREDROP (annuaire officiel des rédactions) · 6. MIROIRS ONION OFFICIELS · 7. CHECK .ONION · 8. OPSEC
-Services officiels uniquement — aucun annuaire de marketplaces.
+## 🧅 DARK TOOL — opérations Tor (20 tools)
+1. STATUT · 2. INSTALL/DÉMARRER · 3. IP SORTIE · 4. FETCH VIA TOR · 5. SECUREDROP (officiel) · 6. MIROIRS · 7. CHECK .ONION
+8. OPSEC · 9. VALIDER .ONION · a. CIRCUIT · b. NEWNYM · c. LOG · d. LATENCE · e. TEST DE FUITE · f. BATCH CHECK
+g. PRESSE INTERNATIONALE · h. RECHERCHE AHMIA (moteur dark web filtré) · i. BRIDGES · j. DARK WEB EN CTF · k. STATS RÉSEAU
+Services officiels uniquement — aucun annuaire de marketplaces. **+ logos ANSI-Shadow partout**
 
 ## ⚡ Le BOOST GitHub (gt_lib.py)
 

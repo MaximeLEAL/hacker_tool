@@ -526,9 +526,7 @@ def menu():
     for line in SKULL.splitlines():
         print(CD + line)
     print()
-    print(f"{B}{C}  ╔═══════════════════════════════════════════════╗{RST}")
-    print(f"{B}{C}  ║   V U L N   T O O L  —  hacker_tool           ║{RST}")
-    print(f"{B}{C}  ╚═══════════════════════════════════════════════╝{RST}")
+    print(gt_lib.bigtext("VULN", C))
     print(f"{DIM}       powered by Maxime Leal · cibles autorisées uniquement{RST}\n")
     if TARGET["ip"] or TARGET["domain"]:
         print(f"  {B}CIBLE :{RST} {W}{TARGET['domain'] or TARGET['ip']}{RST}\n")

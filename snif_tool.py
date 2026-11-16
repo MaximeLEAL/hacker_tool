@@ -366,9 +366,7 @@ def menu():
     for line in LOGO.splitlines():
         print(CD + line)
     print()
-    print(f"{B}{C}  ╔═══════════════════════════════════════════════╗{RST}")
-    print(f"{B}{C}  ║   N E T   S N I F F  —  hacker_tool           ║{RST}")
-    print(f"{B}{C}  ╚═══════════════════════════════════════════════╝{RST}")
+    print(gt_lib.bigtext("SNIFF", C))
     print(f"{DIM}       powered by Maxime Leal · audit de TON réseau{RST}\n")
     for n, name, _, desc in TOOLS:
         print(f"  {B}{C}{n}{RST}  {W}{name:<26}{RST} {DIM}{desc}{RST}")

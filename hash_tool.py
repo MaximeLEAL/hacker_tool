@@ -554,9 +554,7 @@ def menu():
     for line in LOGO.splitlines():
         print(VD + line)
     print()
-    print(f"{B}{V}  ╔═══════════════════════════════════════════════╗{RST}")
-    print(f"{B}{V}  ║   H A S H   T O O L  —  hacker_tool           ║{RST}")
-    print(f"{B}{V}  ╚═══════════════════════════════════════════════╝{RST}")
+    print(gt_lib.bigtext("HASH", V))
     print(f"{DIM}       powered by Maxime Leal · CTF crypto & forensics{RST}\n")
     for n, name, _, desc in TOOLS:
         print(f"  {B}{V}{n}{RST}  {W}{name:<26}{RST} {DIM}{desc}{RST}")

@@ -600,9 +600,7 @@ def menu():
     for line in MASK.splitlines():
         print(GD + line)
     print()
-    print(f"{B}{G}  ╔═══════════════════════════════════════════════╗{RST}")
-    print(f"{B}{G}  ║   R E C O N   T O O L  —  hacker_tool         ║{RST}")
-    print(f"{B}{G}  ╚═══════════════════════════════════════════════╝{RST}")
+    print(gt_lib.bigtext("RECON", G))
     print(f"{DIM}       powered by Maxime Leal · usage : cibles autorisées uniquement{RST}\n")
     if TARGET["domain"] or TARGET["ip"]:
         print(f"  {B}CIBLE :{RST} {W}{TARGET['domain'] or TARGET['ip']}{RST} {DIM}(IP {TARGET['ip']}){RST}\n")

@@ -554,9 +554,7 @@ def menu():
     for line in LOGO.splitlines():
         print(CD + line)
     print()
-    print(f"{B}{C}  ╔═══════════════════════════════════════════════╗{RST}")
-    print(f"{B}{C}  ║   H U N T   T O O L  —  hacker_tool           ║{RST}")
-    print(f"{B}{C}  ╚═══════════════════════════════════════════════╝{RST}")
+    print(gt_lib.bigtext("HUNT", C))
     print(f"{DIM}       powered by Maxime Leal · bug bounty workflow{RST}\n")
     if TARGET["domain"]:
         print(f"  {B}CIBLE :{RST} {W}{TARGET['domain']}{RST}\n")

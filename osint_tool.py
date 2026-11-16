@@ -581,9 +581,7 @@ def menu():
     for line in LOGO.splitlines():
         print(CD + line)
     print()
-    print(f"{B}{C}  ╔═══════════════════════════════════════════════╗{RST}")
-    print(f"{B}{C}  ║   O S I N T   D E E P  —  hacker_tool         ║{RST}")
-    print(f"{B}{C}  ╚═══════════════════════════════════════════════╝{RST}")
+    print(gt_lib.bigtext("OSINT", C))
     print(f"{DIM}       powered by Maxime Leal · sources publiques uniquement{RST}\n")
     if TARGET["domain"] or TARGET["username"]:
         print(f"  {B}CONTEXTE :{RST} {W}{TARGET['domain'] or TARGET['username']}{RST}\n")

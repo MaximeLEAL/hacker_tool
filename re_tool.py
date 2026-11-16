@@ -376,9 +376,7 @@ def menu():
     for line in LOGO.splitlines():
         print(CD + line)
     print()
-    print(f"{B}{C}  ╔═══════════════════════════════════════════════╗{RST}")
-    print(f"{B}{C}  ║   R E   T O O L  —  hacker_tool               ║{RST}")
-    print(f"{B}{C}  ╚═══════════════════════════════════════════════╝{RST}")
+    print(gt_lib.bigtext("RE", C))
     print(f"{DIM}       powered by Maxime Leal · analyse statique · radare2 6.x{RST}\n")
     if SAMPLE["path"]:
         print(f"  {B}ÉCHANTILLON :{RST} {W}{os.path.basename(SAMPLE['path'])}{RST}\n")
